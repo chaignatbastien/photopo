@@ -1,9 +1,12 @@
-import sys
 import os
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--no-sandbox"
+
+import sys
 from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtCore import QUrl
+from PySide6.QtWebEngineCore import QWebEngineSettings
 
 from app.api import Api
 
@@ -24,6 +27,9 @@ class MainWindow(QMainWindow):
 
         self.browser = QWebEngineView()
         self.setCentralWidget(self.browser)
+
+        settings = self.browser.settings()
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
 
         # Pont Python <-> JS : on enregistre notre objet Api sous le nom "api",
         # il sera accessible côté JS via window.api (voir map.js plus tard)

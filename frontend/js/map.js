@@ -1,75 +1,89 @@
-// ---- 1. Pont avec Python ----
-// QWebChannel connecte le JS à l'objet "api" enregistré dans main.py.
-// La fonction passée en 2e argument est un "callback" : une fonction qui
-// sera exécutée automatiquement UNE FOIS que la connexion est prête
-// (pas tout de suite, ça prend un petit instant en coulisses).
+// ---- 1. Pont avec Python (inchangé) ----
 new QWebChannel(qt.webChannelTransport, function (channel) {
     window.api = channel.objects.api;
-    // Dès maintenant on pourra faire window.api.maFonction(...) plus tard
 });
 
-// ---- 2. Couches de fond ----
-// tileLayer() ne charge pas une seule image, mais définit un GABARIT d'URL.
-// {z}/{x}/{y} sont des espaces réservés que Leaflet remplace lui-même :
-// {z} = niveau de zoom, {x}/{y} = position de la tuile sur la grille.
-// C'est CE mécanisme qui fait qu'en zoomant, Leaflet redemande automatiquement
-// des tuiles avec un {z} différent, donc plus ou moins précises — sans
-// qu'on ait à coder cette logique nous-mêmes.
-const photocarte = L.tileLayer(
-    'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg',
-    { maxZoom: 19, attribution: '© swisstopo' }
-);
+// ---- 2. Définition des styles ----
+// Un "style" MapLibre décrit d'un coup : les sources de données ET comment
+// les afficher. Pour la carte nationale, on définit nous-mêmes un style
+// minimal avec une seule source raster (les tuiles Swisstopo classiques).
+const carteNationaleStyle = {
+    version: 8,
+    sources: {
+        'pixelkarte': {
+            type: 'raster',
+            tiles: [
+                'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg'
+            ],
+            tileSize: 256,
+            attribution: '© swisstopo'
+        }
+    },
+    layers: [
+        { id: 'pixelkarte-layer', type: 'raster', source: 'pixelkarte' }
+    ]
+};
 
-const carteNationale = L.tileLayer(
-    'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg',
-    { maxZoom: 19, attribution: '© swisstopo' }
-);
-
-const cheminsRandonnee = L.tileLayer(
-    'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swisstlm3d-wanderwege/default/current/3857/{z}/{x}/{y}.png',
-    { maxZoom: 19, attribution: '© swisstopo' }
-);
+// Pour la photocarte, on utilise directement le style officiel "Imagery
+// Basemap" de Swisstopo (photo aérienne + noms de lieux déjà filtrés
+// intelligemment). MapLibre va chercher et interpréter ce fichier tout seul.
+const photocarteStyleUrl = 'https://vectortiles.geo.admin.ch/styles/ch.swisstopo.imagerybasemap.vt/style.json';
 
 // ---- 3. Création de la carte ----
-// L.map('map', ...) cherche l'élément HTML avec id="map" (notre <div id="map">)
-// et y installe la carte. C'est le lien entre le JS et le HTML de la page.
-const map = L.map('map', {
-    center: [46.8, 8.2],   // [latitude, longitude] — ici centré sur la Suisse
+const map = new maplibregl.Map({
+    container: 'map',           // id de la <div> qui accueille la carte
+    style: carteNationaleStyle, // style affiché au démarrage
+    center: [8.2, 46.8],        // ATTENTION : [longitude, latitude] ici, pas l'inverse
     zoom: 8,
-    layers: [carteNationale]  // couche visible par défaut au démarrage
 });
 
-// ---- 4. Sélecteur de couches ----
-// Un objet JS { "Nom affiché": variable, ... } associe un texte visible
-// par l'utilisateur à la couche Leaflet correspondante.
-const baseLayers = {
-    "Carte nationale": carteNationale,
-    "Photocarte": photocarte
-};
+// ---- 4. Gestion de la couche "chemins de randonnée" ----
+// On l'isole dans une fonction car elle doit pouvoir être "réappliquée"
+// après chaque changement de fond de carte (voir point 5).
+function addWanderwegeLayer() {
+    if (!map.getSource('wanderwege')) {  // évite de l'ajouter deux fois
+        map.addSource('wanderwege', {
+            type: 'raster',
+            tiles: [
+                'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swisstlm3d-wanderwege/default/current/3857/{z}/{x}/{y}.png'
+            ],
+            tileSize: 256
+        });
+        map.addLayer({ id: 'wanderwege-layer', type: 'raster', source: 'wanderwege' });
+    }
+}
 
-const overlayLayers = {
-    "Chemins de randonnée": cheminsRandonnee
-};
+function removeWanderwegeLayer() {
+    if (map.getLayer('wanderwege-layer')) map.removeLayer('wanderwege-layer');
+    if (map.getSource('wanderwege')) map.removeSource('wanderwege');
+}
 
-// L.control.layers crée le petit widget en haut à droite de la carte
-// (boutons radio pour baseLayers, cases à cocher pour overlayLayers)
-L.control.layers(baseLayers, overlayLayers).addTo(map);
-
-// ---- 5. Zoom seulement avec Ctrl+molette ----
-map.scrollWheelZoom.disable();  // on coupe le zoom "molette simple" par défaut
-
-// addEventListener : on "écoute" un événement du navigateur (ici 'wheel' =
-// molette) et on donne une fonction à exécuter à chaque fois qu'il se produit.
-// C'est la base de la programmation JS dans un navigateur : au lieu de
-// dérouler des instructions dans l'ordre comme en Python, on réagit à
-// des événements déclenchés par l'utilisateur.
-map.getContainer().addEventListener('wheel', function (event) {
-    if (event.ctrlKey) {
-        event.preventDefault();  // empêche le navigateur de zoomer la page entière
-        if (event.deltaY < 0) {
-            map.zoomIn();
+// ---- 5. Changement de fond de carte ----
+document.querySelectorAll('input[name="base"]').forEach(function (radio) {
+    radio.addEventListener('change', function (event) {
+        if (event.target.value === 'carteNationale') {
+            map.setStyle(carteNationaleStyle);
         } else {
-            map.zoomOut();
+            map.setStyle(photocarteStyleUrl);
         }
+        // setStyle() efface TOUTES nos couches ajoutées manuellement
+        // (dont wanderwege). L'événement 'style.load' se déclenche une
+        // fois que le nouveau style est prêt : c'est là qu'on la
+        // réajoute si elle était cochée.
+    });
+});
+
+map.on('style.load', function () {
+    if (document.getElementById('toggle-wanderwege').checked) {
+        addWanderwegeLayer();
+    }
+});
+
+// ---- 6. Case à cocher "chemins de randonnée" ----
+document.getElementById('toggle-wanderwege').addEventListener('change', function (event) {
+    if (event.target.checked) {
+        addWanderwegeLayer();
+    } else {
+        removeWanderwegeLayer();
     }
 });
