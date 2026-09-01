@@ -1,3 +1,5 @@
+# code pour tester le fonctionnement de PySide6 (requêtes fonctionnelles si une image s'affiche)
+
 import os
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--no-sandbox"
 

@@ -87,3 +87,15 @@ document.getElementById('toggle-wanderwege').addEventListener('change', function
         removeWanderwegeLayer();
     }
 });
+
+map.on('click', function (event) {
+
+    const lng = event.lngLat.lng;
+    const lat = event.lngLat.lat;
+
+    new maplibregl.Marker()
+        .setLngLat([lng, lat])
+        .addTo(map);
+
+    window.api.add_point(lat, lng);
+});
