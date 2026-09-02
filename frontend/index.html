@@ -3,41 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <title>Itinéraires</title>
-
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-
     <style>
-        html, body, #map {
+        html, body, #map { height: 100%; margin: 0; padding: 0; }
+
+        #sidebar {
+            position: absolute;
+            top: 0;
+            right: 0;
             height: 100%;
-            margin: 0;
-            padding: 0;
+            width: 280px;
+            background: white;
+            box-shadow: -2px 0 6px rgba(0,0,0,0.2);
+            font-family: sans-serif;
+            font-size: 14px;
+            padding: 16px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            transition: transform 0.2s ease;
+            z-index: 2;
         }
-        #layer-switcher {
+        #sidebar.collapsed { transform: translateX(280px); }
+
+        #sidebar-toggle {
             position: absolute;
             top: 10px;
             right: 10px;
-            z-index: 1;
+            z-index: 3;
             background: white;
-            padding: 10px;
-            border-radius: 6px;
-            font-family: sans-serif;
-            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
             box-shadow: 0 1px 4px rgba(0,0,0,0.3);
         }
+
+        #sidebar h3 { margin-top: 0; }
+        #sidebar section { margin-bottom: 20px; }
+
+        .point-marker {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #d9534f;
+            border: 2px solid white;
+            cursor: pointer;
+        }
+        .point-marker.has-photo { background: #5cb85c; }
+
+        .point-popup img { max-width: 200px; display: block; margin-bottom: 8px; border-radius: 4px; }
+        .point-popup button { margin-right: 6px; margin-top: 4px; }
+        #points-list li { padding: 4px 0; cursor: pointer; }
+        #points-list li:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <div id="map"></div>
 
-    <div id="layer-switcher">
-        <div><label><input type="radio" name="base" value="carteNationale" checked> Carte nationale</label></div>
-        <div><label><input type="radio" name="base" value="photocarte"> Photocarte</label></div>
-        <hr>
-        <div><label><input type="checkbox" id="toggle-wanderwege"> Chemins de randonnée</label></div>
+    <button id="sidebar-toggle">☰</button>
+    <div id="sidebar">
+        <section>
+            <h3>Fond de carte</h3>
+            <div><label><input type="radio" name="base" value="carteNationale" checked> Carte nationale</label></div>
+            <div><label><input type="radio" name="base" value="photocarte"> Photocarte</label></div>
+        </section>
+
+        <section>
+            <h3>Couches</h3>
+            <div><label><input type="checkbox" id="toggle-wanderwege"> Chemins de randonnée</label></div>
+            <div><label><input type="checkbox" id="toggle-points" checked> Points</label></div>
+        </section>
+
+        <section>
+            <h3>Points</h3>
+            <ul id="points-list" style="list-style: none; padding: 0; margin: 0;"></ul>
+        </section>
+
+        <section>
+            <h3>Itinéraires</h3>
+            <p><em>(à venir)</em></p>
+        </section>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
     <script src="js/map.js"></script>
+    <script src="js/points.js"></script>
+    <script src="js/sidebar.js"></script>
 </body>
 </html>

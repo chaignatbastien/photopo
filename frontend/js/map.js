@@ -1,7 +1,7 @@
 // ---- 1. Pont avec Python (inchangé) ----
-new QWebChannel(qt.webChannelTransport, function (channel) {
-    window.api = channel.objects.api;
-});
+//new QWebChannel(qt.webChannelTransport, function (channel) {
+//    window.api = channel.objects.api;
+//});
 
 // ---- 2. Définition des styles ----
 // Un "style" MapLibre décrit d'un coup : les sources de données ET comment
@@ -86,16 +86,4 @@ document.getElementById('toggle-wanderwege').addEventListener('change', function
     } else {
         removeWanderwegeLayer();
     }
-});
-
-map.on('click', function (event) {
-
-    const lng = event.lngLat.lng;
-    const lat = event.lngLat.lat;
-
-    new maplibregl.Marker()
-        .setLngLat([lng, lat])
-        .addTo(map);
-
-    window.api.add_point(lat, lng);
 });

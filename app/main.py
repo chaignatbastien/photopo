@@ -1,17 +1,17 @@
-import os
-os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--no-sandbox"
-
 import sys
+import os
 from PySide6.QtWidgets import QApplication, QMainWindow
-from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtCore import QUrl
-from PySide6.QtWebEngineCore import QWebEngineSettings
 
 from app.api import Api
+from app.webview import MapWebView
+from app.storage.database import init_db
+from app.storage.repositories import PointRepository
+from app.services.photo_service import PhotoService
+
 
 def get_frontend_path():
-    # Gère aussi bien l'exécution normale (uv run) que l'exécutable PyInstaller
     if getattr(sys, "frozen", False):
         base_path = os.path.dirname(sys.executable)
     else:
@@ -25,14 +25,18 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Itinéraires")
         self.resize(1200, 800)
 
-        self.browser = QWebEngineView()
+        point_repository = PointRepository()
+        photo_service = PhotoService()
+
+        self.browser = MapWebView(photo_service, point_repository)
         self.setCentralWidget(self.browser)
 
         settings = self.browser.settings()
+        from PySide6.QtWebEngineCore import QWebEngineSettings
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
 
-        # Pont Python <-> JS : on enregistre notre objet Api sous le nom "api",
-        # il sera accessible côté JS via window.api (voir map.js plus tard)
         self.channel = QWebChannel()
         self.api = Api()
         self.channel.registerObject("api", self.api)
@@ -42,6 +46,7 @@ class MainWindow(QMainWindow):
 
 
 def main():
+    init_db()
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
