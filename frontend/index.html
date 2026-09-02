@@ -52,7 +52,14 @@
         .point-marker.has-photo { background: #5cb85c; }
 
         .point-popup img { max-width: 200px; display: block; margin-bottom: 8px; border-radius: 4px; }
-        .point-popup button { margin-right: 6px; margin-top: 4px; }
+        .point-popup-name { width: 100%; margin-bottom: 8px; font-size: 14px; padding: 4px; box-sizing: border-box; }
+        .point-popup button { margin-top: 4px; }
+        .photo-placeholder {
+            display: flex; align-items: center; justify-content: center;
+            width: 80px; height: 80px; border: 2px dashed #999; border-radius: 6px;
+            font-size: 28px; color: #999; cursor: pointer; margin-bottom: 8px;
+        }
+        .photo-placeholder:hover { border-color: #666; color: #666; }
         #points-list li { padding: 4px 0; cursor: pointer; }
         #points-list li:hover { text-decoration: underline; }
     </style>
@@ -75,7 +82,7 @@
         </section>
 
         <section>
-            <h3>Points</h3>
+            <h3 id="points-list-toggle" style="cursor: pointer;">Points ▾</h3>
             <ul id="points-list" style="list-style: none; padding: 0; margin: 0;"></ul>
         </section>
 

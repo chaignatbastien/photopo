@@ -33,3 +33,6 @@ class PointService:
 
     def move_point(self, point_id, lat, lon):
         self._repo.update_position(point_id, lat, lon)
+
+    def rename_point(self, point_id, name):
+        self._repo.update_name(point_id, name)

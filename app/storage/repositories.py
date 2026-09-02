@@ -42,3 +42,9 @@ class PointRepository:
         )
         conn.commit()
         conn.close()
+
+    def update_name(self, point_id, name):
+        conn = get_connection()
+        conn.execute("UPDATE points SET name = ? WHERE id = ?", (name, point_id))
+        conn.commit()
+        conn.close()
