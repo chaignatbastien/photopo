@@ -2,6 +2,7 @@ import json
 from PySide6.QtCore import QObject, Slot
 from app.services.point_service import PointService
 from app.services.photo_service import PhotoService
+from app.services.route_service import RouteService
 from app.storage.repositories import PointRepository
 
 
@@ -11,6 +12,7 @@ class Api(QObject):
         self.point_service = PointService()
         self.photo_service = PhotoService()
         self.point_repository = PointRepository()
+        self.route_service = RouteService()
 
     @Slot(float, float, str, result=str)
     def add_point(self, lat, lon, name):
@@ -38,4 +40,13 @@ class Api(QObject):
         photo_url = self.photo_service.save_photo_from_bytes(
             self.point_repository, point_id, filename, data_url
         )
-        return json.dumps(photo_url)      
+        return json.dumps(photo_url)
+
+    @Slot(str, str, str, result=int)
+    def create_route(self, name, color, point_ids_json):
+        point_ids = json.loads(point_ids_json)
+        return self.route_service.create_route(name, color, point_ids)
+
+    @Slot(result=str)
+    def get_routes(self):
+        return json.dumps(self.route_service.list_routes())   

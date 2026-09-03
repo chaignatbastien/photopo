@@ -88,7 +88,10 @@
 
         <section>
             <h3>Itinéraires</h3>
-            <p><em>(à venir)</em></p>
+            <div><label>Couleur : <input type="color" id="route-color" value="#3388ff"></label></div>
+            <button id="btn-start-route">Commencer l'itinéraire</button>
+            <button id="btn-end-route" style="display: none;">Terminer l'itinéraire</button>
+            <ul id="routes-list" style="list-style: none; padding: 0; margin-top: 10px;"></ul>
         </section>
     </div>
 
@@ -96,6 +99,7 @@
     <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
     <script src="js/map.js"></script>
     <script src="js/points.js"></script>
+    <script src="js/routes.js"></script>
     <script src="js/sidebar.js"></script>
 </body>
 </html>

@@ -178,6 +178,7 @@ document.getElementById('points-list-toggle').addEventListener('click', function
 // Chaque clic sur la carte crée maintenant systématiquement un nouveau point
 // (le déplacement se fait uniquement par glisser-déposer du marqueur)
 map.on('click', function (e) {
+    if (routeMode) return;
     const { lat, lng } = e.lngLat;
     
     if (pendingPointId !== null) {
@@ -234,4 +235,5 @@ window.markerHasPhoto = function (pointId, photoUrl) {
 new QWebChannel(qt.webChannelTransport, function (channel) {
     window.api = channel.objects.api;
     loadPoints();
+    loadRoutes();
 });

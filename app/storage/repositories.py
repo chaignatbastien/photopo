@@ -48,3 +48,38 @@ class PointRepository:
         conn.execute("UPDATE points SET name = ? WHERE id = ?", (name, point_id))
         conn.commit()
         conn.close()
+
+class RouteRepository:
+    def create(self, name, color, point_ids):
+        conn = get_connection()
+        cur = conn.execute(
+            "INSERT INTO routes (name, color) VALUES (?, ?)", (name, color)
+        )
+        route_id = cur.lastrowid
+        for order, point_id in enumerate(point_ids):
+            conn.execute(
+                "INSERT INTO route_points (route_id, point_id, sequence_order) VALUES (?, ?, ?)",
+                (route_id, point_id, order)
+            )
+        conn.commit()
+        conn.close()
+        return route_id
+
+    def list_all(self):
+        conn = get_connection()
+        routes = conn.execute("SELECT * FROM routes").fetchall()
+        result = []
+        for route in routes:
+            points = conn.execute("""
+                SELECT p.id, p.name, p.lat, p.lon, p.photo_filename
+                FROM route_points rp
+                JOIN points p ON p.id = rp.point_id
+                WHERE rp.route_id = ?
+                ORDER BY rp.sequence_order
+            """, (route["id"],)).fetchall()
+            result.append({
+                "id": route["id"], "name": route["name"], "color": route["color"],
+                "points": [dict(p) for p in points]
+            })
+        conn.close()
+        return result
