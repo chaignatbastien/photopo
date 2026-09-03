@@ -3,6 +3,7 @@ const pointMarkers = {};
 const pointsData = {};
 
 let activePopup = null;
+let pendingPointId = null;
 
 function createMarkerElement(point) {
     const el = document.createElement('div');
@@ -31,6 +32,9 @@ function addPointToMap(point) {
 
     el.addEventListener('click', function (e) {
         e.stopPropagation();
+        if (point.id !== pendingPointId) {
+            pendingPointId = null;
+        }
         openPointPopup(pointsData[point.id]);
     });
 
@@ -111,6 +115,7 @@ function buildPopupContent(point) {
         pointMarkers[point.id].remove();
         delete pointMarkers[point.id];
         delete pointsData[point.id];
+        if (pendingPointId === point.id) pendingPointId = null;
         if (activePopup) { activePopup.remove(); activePopup = null; }
         refreshPointsList();
     });
@@ -120,16 +125,29 @@ function buildPopupContent(point) {
 }
 
 function openPointPopup(point) {
+    if (activePopup && String(activePopup._pointId) === String(point.id)) {
+        // Même point : on actualise juste contenu/position, sans fermer la
+        // popup (sinon ça déclenche 'close' et annule l'état "en attente").
+        activePopup.setLngLat([point.lon, point.lat]).setDOMContent(buildPopupContent(point));
+        updateMarkerVisibility();
+        return;
+    }
+
     if (activePopup) activePopup.remove();
+
     activePopup = new maplibregl.Popup({ closeOnClick: false })
         .setLngLat([point.lon, point.lat])
         .setDOMContent(buildPopupContent(point))
         .addTo(map);
     activePopup._pointId = point.id;
     activePopup.on('close', function () {
+        if (String(pendingPointId) === String(activePopup._pointId)) {
+            pendingPointId = null;
+        }
         activePopup = null;
         updateMarkerVisibility();
     });
+
     updateMarkerVisibility();
 }
 
@@ -140,6 +158,9 @@ function refreshPointsList() {
         const li = document.createElement('li');
         li.textContent = point.name;
         li.addEventListener('click', function () {
+            if (point.id !== pendingPointId) {
+                pendingPointId = null;
+            }
             map.flyTo({ center: [point.lon, point.lat], zoom: Math.max(map.getZoom(), POINTS_MIN_ZOOM) });
             openPointPopup(point);
         });
@@ -158,12 +179,25 @@ document.getElementById('points-list-toggle').addEventListener('click', function
 // (le déplacement se fait uniquement par glisser-déposer du marqueur)
 map.on('click', function (e) {
     const { lat, lng } = e.lngLat;
-    window.api.add_point(lat, lng, 'Nouveau point', function (result) {
-        const point = JSON.parse(result);
-        addPointToMap(point);
-        openPointPopup(point);
-        refreshPointsList();
-    });
+    
+    if (pendingPointId !== null) {
+        const marker = pointMarkers[pendingPointId];
+        if (marker) {
+            marker.setLngLat([lng, lat]);
+            window.api.update_point_position(pendingPointId, lat, lng);
+            pointsData[pendingPointId].lat = lat;
+            pointsData[pendingPointId].lon = lng;
+            openPointPopup(pointsData[pendingPointId]);
+        }
+    } else {
+        window.api.add_point(lat, lng, 'Nouveau point', function (result) {
+            const point = JSON.parse(result);
+            pendingPointId = point.id;
+            addPointToMap(point);
+            openPointPopup(point);
+            refreshPointsList();
+        });
+    }
 });
 
 function updateMarkerVisibility() {
