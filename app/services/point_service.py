@@ -20,9 +20,17 @@ class PointService:
         return point
 
     def create_point(self, lat, lon, name):
-        point_id = self._repo.create(name, lat, lon)
+        point_id = self._repo.create(name, lat, lon, is_route_point=False)
         return self._enrich({
-            "id": point_id, "name": name, "lat": lat, "lon": lon, "photo_filename": None
+            "id": point_id, "name": name, "lat": lat, "lon": lon,
+            "photo_filename": None, "is_route_point": 0
+        })
+
+    def create_route_point(self, lat, lon, name):
+        point_id = self._repo.create(name, lat, lon, is_route_point=True)
+        return self._enrich({
+            "id": point_id, "name": name, "lat": lat, "lon": lon,
+            "photo_filename": None, "is_route_point": 1
         })
 
     def list_points(self):

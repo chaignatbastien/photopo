@@ -42,11 +42,26 @@ class Api(QObject):
         )
         return json.dumps(photo_url)
 
-    @Slot(str, str, str, result=int)
-    def create_route(self, name, color, point_ids_json):
-        point_ids = json.loads(point_ids_json)
-        return self.route_service.create_route(name, color, point_ids)
+    @Slot(float, float, str, result=str)
+    def add_route_point(self, lat, lon, name):
+        return json.dumps(self.point_service.create_route_point(lat, lon, name))
+
+    @Slot(str, result=str)
+    def calculate_route(self, waypoints_json):
+        waypoints = json.loads(waypoints_json)  # liste de [lat, lon]
+        coords = self.route_service.calculate_route([(w[0], w[1]) for w in waypoints])
+        return json.dumps(coords)
+
+    @Slot(str, str, str, str, result=int)
+    def create_route(self, name, color, point_ids_json, geometry_json):
+        return self.route_service.create_route(
+            name, color, json.loads(point_ids_json), json.loads(geometry_json)
+        )
 
     @Slot(result=str)
     def get_routes(self):
-        return json.dumps(self.route_service.list_routes())   
+        return json.dumps(self.route_service.list_routes())
+
+    @Slot(int)
+    def delete_route(self, route_id):
+        self.route_service.delete_route(route_id)

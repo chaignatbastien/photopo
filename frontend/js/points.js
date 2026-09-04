@@ -110,7 +110,6 @@ function buildPopupContent(point) {
     const btnDelete = document.createElement('button');
     btnDelete.textContent = 'Supprimer';
     btnDelete.addEventListener('click', function () {
-        if (!confirm('Supprimer ce point ?')) return;
         window.api.delete_point(point.id);
         pointMarkers[point.id].remove();
         delete pointMarkers[point.id];
@@ -155,6 +154,7 @@ function refreshPointsList() {
     const listEl = document.getElementById('points-list');
     listEl.innerHTML = '';
     Object.values(pointsData).forEach(function (point) {
+        if (point.is_route_point && !point.photo_url) return;
         const li = document.createElement('li');
         li.textContent = point.name;
         li.addEventListener('click', function () {
@@ -230,6 +230,7 @@ window.markerHasPhoto = function (pointId, photoUrl) {
     if (activePopup && String(activePopup._pointId) === String(pointId)) {
         openPointPopup(pointsData[pointId]);
     }
+    refreshPointsList();
 };
 
 new QWebChannel(qt.webChannelTransport, function (channel) {
