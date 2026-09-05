@@ -49,21 +49,59 @@ class PointRepository:
 
 
 class RouteRepository:
-    def create(self, name, color, point_ids, geometry_coords):
+    def create(self, name, color, point_ids, geometry_coords, is_free_flags=None):
+        if is_free_flags is None:
+            is_free_flags = [False] * len(point_ids)
+
         conn = get_connection()
         cur = conn.execute(
             "INSERT INTO routes (name, color, geometry) VALUES (?, ?, ?)",
             (name, color, json.dumps(geometry_coords))
         )
         route_id = cur.lastrowid
-        for order, point_id in enumerate(point_ids):
+        for order, (point_id, is_free) in enumerate(zip(point_ids, is_free_flags)):
             conn.execute(
-                "INSERT INTO route_points (route_id, point_id, sequence_order) VALUES (?, ?, ?)",
-                (route_id, point_id, order)
+                "INSERT INTO route_points (route_id, point_id, sequence_order, is_free) VALUES (?, ?, ?, ?)",
+                (route_id, point_id, order, int(is_free))
             )
         conn.commit()
         conn.close()
         return route_id
+
+    def update(self, route_id, name, color, point_ids, is_free_flags, geometry_coords):
+        conn = get_connection()
+        conn.execute(
+            "UPDATE routes SET name = ?, color = ?, geometry = ? WHERE id = ?",
+            (name, color, json.dumps(geometry_coords), route_id)
+        )
+        # On recrée entièrement la liste des points de l'itinéraire : plus
+        # simple et fiable que de réconcilier ajouts/suppressions/réordonnancement.
+        conn.execute("DELETE FROM route_points WHERE route_id = ?", (route_id,))
+        for order, (point_id, is_free) in enumerate(zip(point_ids, is_free_flags)):
+            conn.execute(
+                "INSERT INTO route_points (route_id, point_id, sequence_order, is_free) VALUES (?, ?, ?, ?)",
+                (route_id, point_id, order, int(is_free))
+            )
+        conn.commit()
+        conn.close()
+
+    def update_style(self, route_id, name, color):
+        conn = get_connection()
+        conn.execute("UPDATE routes SET name = ?, color = ? WHERE id = ?", (name, color, route_id))
+        conn.commit()
+        conn.close()
+
+    def get_route_points(self, route_id):
+        conn = get_connection()
+        rows = conn.execute("""
+            SELECT p.id, p.name, p.lat, p.lon, p.photo_filename, rp.is_free
+            FROM route_points rp
+            JOIN points p ON p.id = rp.point_id
+            WHERE rp.route_id = ?
+            ORDER BY rp.sequence_order
+        """, (route_id,)).fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
 
     def list_all(self):
         conn = get_connection()

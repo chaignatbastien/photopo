@@ -50,6 +50,7 @@
             cursor: pointer;
         }
         .point-marker.has-photo { background: #5cb85c; }
+        .point-marker.free-point { border-style: dashed; border-color: #333; }
 
         .point-popup img { max-width: 200px; display: block; margin-bottom: 8px; border-radius: 4px; }
         .point-popup-name { width: 100%; margin-bottom: 8px; font-size: 14px; padding: 4px; box-sizing: border-box; }
@@ -63,9 +64,72 @@
         #points-list li { padding: 4px 0; cursor: pointer; }
         #points-list li:hover { text-decoration: underline; }
 
-        .route-popup button { display: block; margin-top: 6px; }
         #routes-list li { padding: 4px 0; cursor: pointer; font-weight: bold; }
         #routes-list li:hover { text-decoration: underline; }
+
+        /* ---- Panneau du bas : détails de l'itinéraire sélectionné ---- */
+        #route-panel {
+            position: absolute;
+            left: 0;
+            right: 280px;
+            bottom: 0;
+            height: 220px;
+            background: white;
+            box-shadow: 0 -2px 6px rgba(0,0,0,0.2);
+            display: flex;
+            z-index: 2;
+            font-family: sans-serif;
+            font-size: 14px;
+        }
+        #route-panel.hidden { display: none; }
+
+        #route-panel-chart {
+            flex: 2;
+            padding: 12px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+        .elevation-svg { width: 100%; height: 100%; }
+        .elevation-area { stroke: none; }
+        .elevation-line { fill: none; stroke-width: 2; }
+        .elevation-axis-label { font-size: 10px; fill: #666; }
+        .route-panel-chart-empty { color: #999; font-style: italic; }
+
+        #route-panel-info {
+            flex: 1;
+            border-left: 1px solid #ddd;
+            padding: 12px 16px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            position: relative;
+        }
+        .route-panel-name-input {
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-bottom: 1px solid transparent;
+            margin-bottom: 10px;
+            padding: 2px 0;
+            font-family: inherit;
+        }
+        .route-panel-name-input:hover, .route-panel-name-input:focus {
+            border-bottom-color: #999;
+            outline: none;
+        }
+        .route-panel-stat { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .route-panel-stat .label { color: #666; }
+        #route-panel-color { border: none; width: 32px; height: 24px; padding: 0; cursor: pointer; vertical-align: middle; }
+        #route-panel-close {
+            position: absolute; top: 8px; right: 8px;
+            border: none; background: none; cursor: pointer; font-size: 16px; color: #999;
+        }
+        #route-panel-edit, #route-panel-delete {
+            display: block; width: 100%; margin-top: 10px; padding: 6px;
+        }
     </style>
 </head>
 <body>
@@ -97,6 +161,20 @@
             <button id="btn-end-route" style="display: none;">Terminer l'itinéraire</button>
             <ul id="routes-list" style="list-style: none; padding: 0; margin-top: 10px;"></ul>
         </section>
+    </div>
+
+    <div id="route-panel" class="hidden">
+        <button id="route-panel-close">✕</button>
+        <div id="route-panel-chart"></div>
+        <div id="route-panel-info">
+            <input type="text" id="route-panel-name" class="route-panel-name-input">
+            <div class="route-panel-stat"><span class="label">Distance</span><span id="route-panel-distance"></span></div>
+            <div class="route-panel-stat"><span class="label">Dénivelé +</span><span id="route-panel-gain"></span></div>
+            <div class="route-panel-stat"><span class="label">Temps estimé</span><span id="route-panel-time"></span></div>
+            <div class="route-panel-stat"><span class="label">Couleur</span><input type="color" id="route-panel-color"></div>
+            <button id="route-panel-edit">✎ Modifier l'itinéraire</button>
+            <button id="route-panel-delete">Supprimer</button>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>

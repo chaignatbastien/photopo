@@ -1,5 +1,6 @@
 let routeMode = false;
 let currentWaypointIds = [];
+let currentWaypointModes = {}; // pointId -> 'path' (routé via BRouter) ou 'free' (ligne droite)
 let currentRouteGeometry = null;
 let routePopup = null;
 const routesById = {};
@@ -11,6 +12,7 @@ function getRouteColor() {
 document.getElementById('btn-start-route').addEventListener('click', function () {
     routeMode = true;
     currentWaypointIds = [];
+    currentWaypointModes = {};
     currentRouteGeometry = null;
     document.getElementById('btn-start-route').style.display = 'none';
     document.getElementById('btn-end-route').style.display = 'inline-block';
@@ -19,14 +21,15 @@ document.getElementById('btn-start-route').addEventListener('click', function ()
 
 document.getElementById('btn-end-route').addEventListener('click', finishRoute);
 
-function addWaypoint(lat, lon, insertBeforeLast) {
-    const name = currentWaypointIds.length === 0 ? 'Départ' : 'Point';
+function addWaypoint(lat, lon, insertBeforeLast, isFree) {
+    const name = currentWaypointIds.length === 0 ? 'Départ' : (isFree ? 'Point libre' : 'Point');
 
     window.api.add_route_point(lat, lon, name, function (result) {
         const point = JSON.parse(result);
         pointsData[point.id] = point;  // réutilise le registre partagé (points.js)
 
         const el = createMarkerElement(point);
+        if (isFree) el.classList.add('free-point');
         const marker = new maplibregl.Marker({ element: el, draggable: true })
             .setLngLat([lon, lat]).addTo(map);
 
@@ -42,6 +45,7 @@ function addWaypoint(lat, lon, insertBeforeLast) {
             openPointPopup(pointsData[point.id]);
         });
         pointMarkers[point.id] = marker;
+        currentWaypointModes[point.id] = isFree ? 'free' : 'path';
 
         if (insertBeforeLast && currentWaypointIds.length >= 2) {
             currentWaypointIds.splice(currentWaypointIds.length - 1, 0, point.id);
@@ -53,27 +57,81 @@ function addWaypoint(lat, lon, insertBeforeLast) {
     });
 }
 
+// Découpe la liste de points en segments : les segments "path" (points de
+// cheminement consécutifs) seront routés via BRouter ; dès qu'un point
+// "libre" touche un segment, celui-ci devient une simple ligne droite.
+function buildSegments(waypointIds) {
+    const segments = [];
+    let currentPathRun = [waypointIds[0]];
+
+    for (let i = 1; i < waypointIds.length; i++) {
+        const prevId = waypointIds[i - 1];
+        const currId = waypointIds[i];
+        const edgeIsFree = currentWaypointModes[prevId] === 'free' || currentWaypointModes[currId] === 'free';
+
+        if (edgeIsFree) {
+            if (currentPathRun.length >= 2) segments.push({ type: 'path', ids: currentPathRun });
+            segments.push({ type: 'straight', ids: [prevId, currId] });
+            currentPathRun = [currId];
+        } else {
+            currentPathRun.push(currId);
+        }
+    }
+    if (currentPathRun.length >= 2) segments.push({ type: 'path', ids: currentPathRun });
+    return segments;
+}
+
 function recalcCurrentRoute() {
     if (currentWaypointIds.length < 2) return;
 
-    const waypoints = currentWaypointIds.map(function (id) {
-        return [pointsData[id].lat, pointsData[id].lon];
-    });
+    const segments = buildSegments(currentWaypointIds);
+    const combinedCoords = [];
 
-    window.api.calculate_route(JSON.stringify(waypoints), function (result) {
-        currentRouteGeometry = JSON.parse(result);
-        const geojson = { type: 'Feature', geometry: { type: 'LineString', coordinates: currentRouteGeometry } };
+    function appendCoords(coords) {
+        coords.forEach(function (coord) {
+            const last = combinedCoords[combinedCoords.length - 1];
+            if (last && last[0] === coord[0] && last[1] === coord[1]) return; // évite le doublon à la jonction
+            combinedCoords.push(coord);
+        });
+    }
 
-        if (map.getSource('current-route')) {
-            map.getSource('current-route').setData(geojson);
+    function processNext(index) {
+        if (index >= segments.length) {
+            currentRouteGeometry = combinedCoords;
+            drawCurrentRouteLine();
+            return;
+        }
+        const segment = segments[index];
+        if (segment.type === 'straight') {
+            appendCoords(segment.ids.map(function (id) {
+                return [pointsData[id].lon, pointsData[id].lat];
+            }));
+            processNext(index + 1);
         } else {
-            map.addSource('current-route', { type: 'geojson', data: geojson });
-            map.addLayer({
-                id: 'current-route-layer', type: 'line', source: 'current-route',
-                paint: { 'line-color': getRouteColor(), 'line-width': 4 }
+            const waypoints = segment.ids.map(function (id) {
+                return [pointsData[id].lat, pointsData[id].lon];
+            });
+            window.api.calculate_route(JSON.stringify(waypoints), function (result) {
+                appendCoords(JSON.parse(result));
+                processNext(index + 1);
             });
         }
-    });
+    }
+
+    processNext(0);
+}
+
+function drawCurrentRouteLine() {
+    const geojson = { type: 'Feature', geometry: { type: 'LineString', coordinates: currentRouteGeometry } };
+    if (map.getSource('current-route')) {
+        map.getSource('current-route').setData(geojson);
+    } else {
+        map.addSource('current-route', { type: 'geojson', data: geojson });
+        map.addLayer({
+            id: 'current-route-layer', type: 'line', source: 'current-route',
+            paint: { 'line-color': getRouteColor(), 'line-width': 4 }
+        });
+    }
 }
 
 function finishRoute() {
@@ -97,6 +155,7 @@ function finishRoute() {
 
     routeMode = false;
     currentWaypointIds = [];
+    currentWaypointModes = {};
     currentRouteGeometry = null;
     document.getElementById('btn-start-route').style.display = 'inline-block';
     document.getElementById('btn-end-route').style.display = 'none';
@@ -180,11 +239,11 @@ function selectRoute(route) {
 
 map.on('click', function (e) {
     if (!routeMode) return;
-    addWaypoint(e.lngLat.lat, e.lngLat.lng, false);
+    addWaypoint(e.lngLat.lat, e.lngLat.lng, false, e.originalEvent.shiftKey);
 });
 
 map.on('contextmenu', function (e) {
     if (!routeMode) return;
     e.originalEvent.preventDefault();
-    addWaypoint(e.lngLat.lat, e.lngLat.lng, true);
+    addWaypoint(e.lngLat.lat, e.lngLat.lng, true, e.originalEvent.shiftKey);
 });

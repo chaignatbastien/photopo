@@ -52,11 +52,31 @@ class Api(QObject):
         coords = self.route_service.calculate_route([(w[0], w[1]) for w in waypoints])
         return json.dumps(coords)
 
-    @Slot(str, str, str, str, result=int)
-    def create_route(self, name, color, point_ids_json, geometry_json):
+    @Slot(str, str, str, str, str, result=int)
+    def create_route(self, name, color, point_ids_json, is_free_json, geometry_json):
         return self.route_service.create_route(
-            name, color, json.loads(point_ids_json), json.loads(geometry_json)
+            name, color,
+            json.loads(point_ids_json), json.loads(is_free_json), json.loads(geometry_json)
         )
+
+    @Slot(int, str, str, str, str, str)
+    def update_route(self, route_id, name, color, point_ids_json, is_free_json, geometry_json):
+        self.route_service.update_route(
+            route_id, name, color,
+            json.loads(point_ids_json), json.loads(is_free_json), json.loads(geometry_json)
+        )
+
+    @Slot(int, str, str)
+    def update_route_style(self, route_id, name, color):
+        self.route_service.update_route_style(route_id, name, color)
+
+    @Slot(int, result=str)
+    def get_route_points(self, route_id):
+        points = self.route_service.get_route_points(route_id)
+        # On réutilise l'enrichissement de PointService (ajoute photo_url)
+        # pour que ces points se comportent comme les autres dans les popups.
+        enriched = [self.point_service._enrich(p) for p in points]
+        return json.dumps(enriched)
 
     @Slot(result=str)
     def get_routes(self):
