@@ -23,8 +23,55 @@ document.getElementById('btn-start-route').addEventListener('click', function ()
 
 document.getElementById('btn-end-route').addEventListener('click', finishRoute);
 
-function addWaypoint(lat, lon, insertBeforeLast, isFree) {
+// Projection plane approximative (suffisante à l'échelle d'un itinéraire de
+// randonnée) pour pouvoir calculer une distance point-segment simplement.
+function projectToPlane(lat, lon, refLat) {
+    const R = 6371; // km
+    return {
+        x: R * (lon * Math.PI / 180) * Math.cos(refLat * Math.PI / 180),
+        y: R * (lat * Math.PI / 180)
+    };
+}
+
+function distancePointToSegmentKm(p, a, b) {
+    const refLat = (a.lat + b.lat) / 2;
+    const P = projectToPlane(p.lat, p.lon, refLat);
+    const A = projectToPlane(a.lat, a.lon, refLat);
+    const B = projectToPlane(b.lat, b.lon, refLat);
+
+    const abx = B.x - A.x, aby = B.y - A.y;
+    const apx = P.x - A.x, apy = P.y - A.y;
+    const abLenSq = abx * abx + aby * aby;
+    let t = abLenSq === 0 ? 0 : (apx * abx + apy * aby) / abLenSq;
+    t = Math.max(0, Math.min(1, t));
+    const dx = P.x - (A.x + t * abx);
+    const dy = P.y - (A.y + t * aby);
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Détermine où insérer un nouveau point "via" : entre les deux waypoints
+// existants dont le segment est le plus proche géographiquement du clic
+// (et pas juste "avant le dernier point", comme avant).
+function findInsertionIndex(lat, lon) {
+    if (currentWaypointIds.length < 2) return currentWaypointIds.length;
+
+    let bestIndex = currentWaypointIds.length;
+    let bestDist = Infinity;
+    for (let i = 0; i < currentWaypointIds.length - 1; i++) {
+        const a = pointsData[currentWaypointIds[i]];
+        const b = pointsData[currentWaypointIds[i + 1]];
+        const dist = distancePointToSegmentKm({ lat, lon }, a, b);
+        if (dist < bestDist) {
+            bestDist = dist;
+            bestIndex = i + 1; // s'insère entre a et b
+        }
+    }
+    return bestIndex;
+}
+
+function addWaypoint(lat, lon, insertAsVia, isFree) {
     const name = currentWaypointIds.length === 0 ? 'Départ' : (isFree ? 'Point libre' : 'Point');
+    const insertIndex = insertAsVia ? findInsertionIndex(lat, lon) : currentWaypointIds.length;
 
     window.api.add_route_point(lat, lon, name, function (result) {
         const point = JSON.parse(result);
@@ -48,12 +95,7 @@ function addWaypoint(lat, lon, insertBeforeLast, isFree) {
         });
         pointMarkers[point.id] = marker;
         currentWaypointModes[point.id] = isFree ? 'free' : 'path';
-
-        if (insertBeforeLast && currentWaypointIds.length >= 2) {
-            currentWaypointIds.splice(currentWaypointIds.length - 1, 0, point.id);
-        } else {
-            currentWaypointIds.push(point.id);
-        }
+        currentWaypointIds.splice(insertIndex, 0, point.id);
 
         recalcCurrentRoute();
     });
@@ -84,7 +126,12 @@ function buildSegments(waypointIds) {
 }
 
 function recalcCurrentRoute() {
-    if (currentWaypointIds.length < 2) return;
+    if (currentWaypointIds.length < 2) {
+        currentRouteGeometry = null;
+        if (map.getLayer('current-route-layer')) map.removeLayer('current-route-layer');
+        if (map.getSource('current-route')) map.removeSource('current-route');
+        return;
+    }
 
     const segments = buildSegments(currentWaypointIds);
     const combinedCoords = [];
@@ -378,6 +425,33 @@ document.getElementById('route-panel-delete').addEventListener('click', function
 document.getElementById('route-panel-edit').addEventListener('click', function () {
     if (selectedRouteId === null) return;
     startEditingRoute(selectedRouteId);
+});
+
+document.getElementById('route-panel-export').addEventListener('click', function () {
+    if (selectedRouteId === null) return;
+    window.api.export_route_gpx(selectedRouteId);
+});
+
+document.getElementById('btn-import-gpx').addEventListener('click', function () {
+    window.api.import_gpx_route(function (result) {
+        const data = JSON.parse(result);
+        if (!data) return; // l'utilisateur a annulé la boîte de dialogue
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        [data.start_point, data.end_point].forEach(function (point) {
+            if (!pointMarkers[point.id]) addPointToMap(point);
+        });
+
+        const route = { id: data.id, name: data.name, color: data.color, geometry: data.geometry };
+        routesById[route.id] = route;
+        drawRoute(route);
+        refreshRoutesList(Object.values(routesById));
+        refreshPointsList();
+        selectRoute(route);
+    });
 });
 
 function startEditingRoute(routeId) {

@@ -1,8 +1,10 @@
 import json
 from PySide6.QtCore import QObject, Slot
+from PySide6.QtWidgets import QFileDialog
 from app.services.point_service import PointService
 from app.services.photo_service import PhotoService
 from app.services.route_service import RouteService
+from app.services.gpx_service import GpxService
 from app.storage.repositories import PointRepository
 
 
@@ -13,6 +15,7 @@ class Api(QObject):
         self.photo_service = PhotoService()
         self.point_repository = PointRepository()
         self.route_service = RouteService()
+        self.gpx_service = GpxService()
 
     @Slot(float, float, str, result=str)
     def add_point(self, lat, lon, name):
@@ -85,3 +88,55 @@ class Api(QObject):
     @Slot(int)
     def delete_route(self, route_id):
         self.route_service.delete_route(route_id)
+
+    @Slot(int)
+    def export_route_gpx(self, route_id):
+        route = self.route_service.get_route(route_id)
+        if route is None:
+            return
+        file_path, _ = QFileDialog.getSaveFileName(
+            None, "Exporter l'itinéraire en GPX", f"{route['name']}.gpx", "Fichiers GPX (*.gpx)"
+        )
+        if not file_path:
+            return  # l'utilisateur a annulé
+        if not file_path.lower().endswith(".gpx"):
+            file_path += ".gpx"
+        self.gpx_service.export_gpx(file_path, route["name"], route["geometry"])
+
+    @Slot(result=str)
+    def import_gpx_route(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            None, "Importer un itinéraire GPX", "", "Fichiers GPX (*.gpx)"
+        )
+        if not file_path:
+            return json.dumps(None)  # l'utilisateur a annulé
+
+        try:
+            parsed = self.gpx_service.parse_gpx(file_path)
+        except Exception:
+            return json.dumps({"error": "Ce fichier n'a pas pu être lu comme un GPX valide."})
+
+        geometry = parsed["geometry"]
+        if len(geometry) < 2:
+            return json.dumps({"error": "Aucune trace exploitable n'a été trouvée dans ce fichier."})
+
+        # On ne crée pas un point pour chaque coordonnée de la trace (souvent
+        # des milliers) : seuls le départ et l'arrivée deviennent des points
+        # "libres" éditables, la trace complète reste dans la géométrie.
+        start_lon, start_lat = geometry[0][0], geometry[0][1]
+        end_lon, end_lat = geometry[-1][0], geometry[-1][1]
+        start_point = self.point_service.create_route_point(start_lat, start_lon, f"{parsed['name']} (départ)")
+        end_point = self.point_service.create_route_point(end_lat, end_lon, f"{parsed['name']} (arrivée)")
+
+        color = "#3388ff"
+        route_id = self.route_service.create_route(
+            parsed["name"], color,
+            [start_point["id"], end_point["id"]],
+            [True, True],
+            geometry
+        )
+
+        return json.dumps({
+            "id": route_id, "name": parsed["name"], "color": color, "geometry": geometry,
+            "start_point": start_point, "end_point": end_point,
+        })

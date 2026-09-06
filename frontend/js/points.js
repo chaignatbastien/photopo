@@ -13,6 +13,7 @@ function createMarkerElement(point) {
 }
 
 function addPointToMap(point) {
+    if (pointMarkers[point.id]) return; // déjà affiché, on ne duplique pas le marqueur
     pointsData[point.id] = point;
 
     const el = createMarkerElement(point);
@@ -117,6 +118,20 @@ function buildPopupContent(point) {
         if (pendingPointId === point.id) pendingPointId = null;
         if (activePopup) { activePopup.remove(); activePopup = null; }
         refreshPointsList();
+
+        // Si ce point fait partie d'un itinéraire en cours de dessin ou
+        // d'édition, il faut aussi le retirer des waypoints en mémoire :
+        // sinon la sauvegarde de l'itinéraire renverra "FOREIGN KEY
+        // constraint failed" (on référencerait un point qui n'existe plus),
+        // et tout recalcul intermédiaire plantera en lisant ses coordonnées.
+        if (typeof currentWaypointIds !== 'undefined') {
+            const idx = currentWaypointIds.indexOf(point.id);
+            if (idx !== -1) {
+                currentWaypointIds.splice(idx, 1);
+                delete currentWaypointModes[point.id];
+                recalcCurrentRoute();
+            }
+        }
     });
     container.appendChild(btnDelete);
 

@@ -25,5 +25,8 @@ class RouteService:
     def list_routes(self):
         return self._repo.list_all()
 
+    def get_route(self, route_id):
+        return self._repo.get(route_id)
+
     def delete_route(self, route_id):
         self._repo.delete(route_id)

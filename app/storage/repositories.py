@@ -94,7 +94,7 @@ class RouteRepository:
     def get_route_points(self, route_id):
         conn = get_connection()
         rows = conn.execute("""
-            SELECT p.id, p.name, p.lat, p.lon, p.photo_filename, rp.is_free
+            SELECT p.id, p.name, p.lat, p.lon, p.photo_filename, p.is_route_point, rp.is_free
             FROM route_points rp
             JOIN points p ON p.id = rp.point_id
             WHERE rp.route_id = ?
@@ -112,6 +112,14 @@ class RouteRepository:
         ]
         conn.close()
         return result
+
+    def get(self, route_id):
+        conn = get_connection()
+        row = conn.execute("SELECT * FROM routes WHERE id = ?", (route_id,)).fetchone()
+        conn.close()
+        if row is None:
+            return None
+        return {"id": row["id"], "name": row["name"], "color": row["color"], "geometry": json.loads(row["geometry"])}
 
     def delete(self, route_id):
         conn = get_connection()
