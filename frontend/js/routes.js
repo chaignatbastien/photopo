@@ -1,8 +1,9 @@
 let routeMode = false;
+let editingRouteId = null;
 let currentWaypointIds = [];
 let currentWaypointModes = {}; // pointId -> 'path' (routé via BRouter) ou 'free' (ligne droite)
 let currentRouteGeometry = null;
-let routePopup = null;
+let selectedRouteId = null;
 const routesById = {};
 
 function getRouteColor() {
@@ -11,6 +12,7 @@ function getRouteColor() {
 
 document.getElementById('btn-start-route').addEventListener('click', function () {
     routeMode = true;
+    editingRouteId = null;
     currentWaypointIds = [];
     currentWaypointModes = {};
     currentRouteGeometry = null;
@@ -142,18 +144,37 @@ function finishRoute() {
 
     const routeName = pointsData[currentWaypointIds[0]].name;
     const color = getRouteColor();
+    const isFreeFlags = currentWaypointIds.map(function (id) { return currentWaypointModes[id] === 'free'; });
 
-    window.api.create_route(
-        routeName, color,
-        JSON.stringify(currentWaypointIds),
-        JSON.stringify(currentRouteGeometry || []),
-        function () { loadRoutes(); }
-    );
+    if (editingRouteId !== null) {
+        const routeId = editingRouteId;
+        window.api.update_route(
+            routeId, routeName, color,
+            JSON.stringify(currentWaypointIds),
+            JSON.stringify(isFreeFlags),
+            JSON.stringify(currentRouteGeometry || []),
+            function () {
+                if (map.getLayer('route-' + routeId + '-layer')) {
+                    map.setLayoutProperty('route-' + routeId + '-layer', 'visibility', 'visible');
+                }
+                loadRoutes();
+            }
+        );
+    } else {
+        window.api.create_route(
+            routeName, color,
+            JSON.stringify(currentWaypointIds),
+            JSON.stringify(isFreeFlags),
+            JSON.stringify(currentRouteGeometry || []),
+            function () { loadRoutes(); }
+        );
+    }
 
     if (map.getLayer('current-route-layer')) map.removeLayer('current-route-layer');
     if (map.getSource('current-route')) map.removeSource('current-route');
 
     routeMode = false;
+    editingRouteId = null;
     currentWaypointIds = [];
     currentWaypointModes = {};
     currentRouteGeometry = null;
@@ -170,6 +191,9 @@ function loadRoutes() {
             drawRoute(route);
         });
         refreshRoutesList(routes);
+        if (selectedRouteId !== null && routesById[selectedRouteId]) {
+            openRoutePanel(routesById[selectedRouteId]);
+        }
     });
 }
 
@@ -204,37 +228,208 @@ function selectRoute(route) {
     if (!route.geometry.length) return;
 
     const bounds = route.geometry.reduce(function (b, coord) {
-        return b.extend(coord);
-    }, new maplibregl.LngLatBounds(route.geometry[0], route.geometry[0]));
+        return b.extend([coord[0], coord[1]]);
+    }, new maplibregl.LngLatBounds([route.geometry[0][0], route.geometry[0][1]], [route.geometry[0][0], route.geometry[0][1]]));
     map.fitBounds(bounds, { padding: 60 });
 
-    if (routePopup) routePopup.remove();
+    openRoutePanel(route);
+}
 
-    const mid = route.geometry[Math.floor(route.geometry.length / 2)];
-    const container = document.createElement('div');
-    container.className = 'route-popup';
+// ---- Calculs de distance / dénivelé / temps, indépendants de BRouter ----
 
-    const title = document.createElement('strong');
-    title.textContent = route.name;
-    title.style.color = route.color;
-    container.appendChild(title);
+function haversineKm(lon1, lat1, lon2, lat2) {
+    const R = 6371;
+    const toRad = function (deg) { return deg * Math.PI / 180; };
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
-    const btnDelete = document.createElement('button');
-    btnDelete.textContent = 'Supprimer';
-    btnDelete.addEventListener('click', function () {
-        if (!confirm(`Supprimer l'itinéraire "${route.name}" ?`)) return;
-        window.api.delete_route(route.id);
-        if (map.getLayer('route-' + route.id + '-layer')) map.removeLayer('route-' + route.id + '-layer');
-        if (map.getSource('route-' + route.id)) map.removeSource('route-' + route.id);
-        if (routePopup) { routePopup.remove(); routePopup = null; }
-        loadRoutes();
+function computeRouteStats(geometry) {
+    // geometry : liste de [lon, lat] ou [lon, lat, altitude] (BRouter fournit
+    // l'altitude en 3e valeur pour les segments routés ; les segments en
+    // ligne droite n'en ont pas).
+    let distanceKm = 0;
+    let elevationGain = 0;
+    let hasElevation = false;
+    const profile = [];
+
+    geometry.forEach(function (coord, i) {
+        if (i > 0) {
+            distanceKm += haversineKm(geometry[i - 1][0], geometry[i - 1][1], coord[0], coord[1]);
+        }
+        const ele = coord[2];
+        if (typeof ele === 'number') {
+            hasElevation = true;
+            const prevEle = geometry[i - 1] ? geometry[i - 1][2] : undefined;
+            if (i > 0 && typeof prevEle === 'number' && ele > prevEle) {
+                elevationGain += ele - prevEle;
+            }
+        }
+        profile.push({ km: distanceKm, ele: typeof ele === 'number' ? ele : null });
     });
-    container.appendChild(btnDelete);
 
-    routePopup = new maplibregl.Popup({ closeOnClick: false })
-        .setLngLat(mid)
-        .setDOMContent(container)
-        .addTo(map);
+    // Estimation du temps de marche (règle de Naismith adaptée) :
+    // ~12 minutes par km à plat + 10 minutes par 100 m de dénivelé positif.
+    const minutes = distanceKm * 12 + (hasElevation ? (elevationGain / 100) * 10 : 0);
+
+    return { distanceKm, elevationGain: hasElevation ? elevationGain : null, minutes, profile, hasElevation };
+}
+
+function formatDuration(minutes) {
+    const h = Math.floor(minutes / 60);
+    const m = Math.round(minutes % 60);
+    if (h === 0) return `${m} min`;
+    return `${h} h ${m.toString().padStart(2, '0')}`;
+}
+
+function buildElevationChartSvg(profile, color) {
+    const width = 600, height = 180, padding = 30;
+    const validPoints = profile.filter(function (p) { return p.ele !== null; });
+    if (validPoints.length < 2) {
+        return '<div class="route-panel-chart-empty">Pas de données d\'altitude pour cet itinéraire.</div>';
+    }
+
+    const maxKm = profile[profile.length - 1].km || 1;
+    const eles = validPoints.map(function (p) { return p.ele; });
+    const minEle = Math.min.apply(null, eles);
+    const maxEle = Math.max.apply(null, eles) || minEle + 1;
+
+    const scaleX = function (km) { return padding + (km / maxKm) * (width - 2 * padding); };
+    const scaleY = function (ele) { return height - padding - ((ele - minEle) / ((maxEle - minEle) || 1)) * (height - 2 * padding); };
+
+    let lastEle = null;
+    const linePoints = profile.map(function (p) {
+        const ele = p.ele !== null ? p.ele : lastEle;
+        if (ele !== null) lastEle = ele;
+        return ele !== null ? scaleX(p.km) + ',' + scaleY(ele) : null;
+    }).filter(Boolean).join(' ');
+
+    const areaPoints = padding + ',' + (height - padding) + ' ' + linePoints + ' ' + (width - padding) + ',' + (height - padding);
+
+    return '<svg viewBox="0 0 ' + width + ' ' + height + '" class="elevation-svg">' +
+        '<polygon points="' + areaPoints + '" class="elevation-area" fill="' + color + '" fill-opacity="0.15" />' +
+        '<polyline points="' + linePoints + '" class="elevation-line" stroke="' + color + '" />' +
+        '<text x="' + padding + '" y="' + (height - 8) + '" class="elevation-axis-label">0 km</text>' +
+        '<text x="' + (width - padding) + '" y="' + (height - 8) + '" class="elevation-axis-label" text-anchor="end">' + maxKm.toFixed(1) + ' km</text>' +
+        '<text x="' + padding + '" y="14" class="elevation-axis-label">' + Math.round(maxEle) + ' m</text>' +
+        '<text x="' + padding + '" y="' + (height - padding + 12) + '" class="elevation-axis-label">' + Math.round(minEle) + ' m</text>' +
+        '</svg>';
+}
+
+// ---- Panneau du bas ----
+
+function openRoutePanel(route) {
+    selectedRouteId = route.id;
+    const stats = computeRouteStats(route.geometry);
+
+    document.getElementById('route-panel-chart').innerHTML = buildElevationChartSvg(stats.profile, route.color);
+    document.getElementById('route-panel-name').value = route.name;
+    document.getElementById('route-panel-distance').textContent = stats.distanceKm.toFixed(1) + ' km';
+    document.getElementById('route-panel-gain').textContent = stats.hasElevation ? Math.round(stats.elevationGain) + ' m' : '—';
+    document.getElementById('route-panel-time').textContent = formatDuration(stats.minutes);
+    document.getElementById('route-panel-color').value = route.color;
+
+    document.getElementById('route-panel').classList.remove('hidden');
+}
+
+function closeRoutePanel() {
+    selectedRouteId = null;
+    document.getElementById('route-panel').classList.add('hidden');
+}
+
+document.getElementById('route-panel-close').addEventListener('click', closeRoutePanel);
+
+document.getElementById('route-panel-name').addEventListener('change', function () {
+    if (selectedRouteId === null) return;
+    const newName = this.value.trim() || 'Itinéraire sans nom';
+    this.value = newName;
+    const route = routesById[selectedRouteId];
+    route.name = newName;
+    window.api.update_route_style(selectedRouteId, newName, route.color);
+    refreshRoutesList(Object.values(routesById));
+});
+
+document.getElementById('route-panel-color').addEventListener('change', function () {
+    if (selectedRouteId === null) return;
+    const route = routesById[selectedRouteId];
+    route.color = this.value;
+    window.api.update_route_style(selectedRouteId, route.name, route.color);
+    if (map.getLayer('route-' + route.id + '-layer')) {
+        map.setPaintProperty('route-' + route.id + '-layer', 'line-color', route.color);
+    }
+    document.getElementById('route-panel-chart').innerHTML = buildElevationChartSvg(computeRouteStats(route.geometry).profile, route.color);
+    refreshRoutesList(Object.values(routesById));
+});
+
+document.getElementById('route-panel-delete').addEventListener('click', function () {
+    if (selectedRouteId === null) return;
+    const route = routesById[selectedRouteId];
+    if (!confirm('Supprimer l\'itinéraire "' + route.name + '" ?')) return;
+    window.api.delete_route(route.id);
+    if (map.getLayer('route-' + route.id + '-layer')) map.removeLayer('route-' + route.id + '-layer');
+    if (map.getSource('route-' + route.id)) map.removeSource('route-' + route.id);
+    delete routesById[route.id];
+    closeRoutePanel();
+    loadRoutes();
+});
+
+document.getElementById('route-panel-edit').addEventListener('click', function () {
+    if (selectedRouteId === null) return;
+    startEditingRoute(selectedRouteId);
+});
+
+function startEditingRoute(routeId) {
+    window.api.get_route_points(routeId, function (result) {
+        const points = JSON.parse(result); // ordonnés, avec is_free
+
+        closeRoutePanel();
+        routeMode = true;
+        editingRouteId = routeId;
+        currentWaypointIds = [];
+        currentWaypointModes = {};
+        currentRouteGeometry = null;
+
+        points.forEach(function (point) {
+            pointsData[point.id] = point;
+            let marker = pointMarkers[point.id];
+            if (!marker) {
+                const el = createMarkerElement(point);
+                marker = new maplibregl.Marker({ element: el, draggable: true })
+                    .setLngLat([point.lon, point.lat]).addTo(map);
+
+                marker.on('dragend', function () {
+                    const { lat: newLat, lng: newLng } = marker.getLngLat();
+                    window.api.update_point_position(point.id, newLat, newLng);
+                    pointsData[point.id].lat = newLat;
+                    pointsData[point.id].lon = newLng;
+                    recalcCurrentRoute();
+                });
+                marker.getElement().addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    openPointPopup(pointsData[point.id]);
+                });
+                pointMarkers[point.id] = marker;
+            }
+            if (point.is_free) marker.getElement().classList.add('free-point');
+            currentWaypointModes[point.id] = point.is_free ? 'free' : 'path';
+            currentWaypointIds.push(point.id);
+        });
+
+        document.getElementById('route-color').value = routesById[routeId].color;
+        document.getElementById('btn-start-route').style.display = 'none';
+        document.getElementById('btn-end-route').style.display = 'inline-block';
+        map.getCanvas().style.cursor = 'crosshair';
+
+        // Cache la ligne déjà enregistrée pendant l'édition ; elle sera
+        // réaffichée (mise à jour) une fois "Terminer l'itinéraire" cliqué.
+        if (map.getLayer('route-' + routeId + '-layer')) {
+            map.setLayoutProperty('route-' + routeId + '-layer', 'visibility', 'none');
+        }
+
+        recalcCurrentRoute();
+    });
 }
 
 map.on('click', function (e) {
