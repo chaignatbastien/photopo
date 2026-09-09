@@ -10,14 +10,13 @@ from app.storage.database import init_db
 from app.storage.repositories import PointRepository
 from app.services.photo_service import PhotoService
 
-
 def get_frontend_path():
     if getattr(sys, "frozen", False):
-        base_path = os.path.dirname(sys.executable)
+        base_path = sys._MEIPASS
     else:
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base_path, "frontend", "index.html")
 
+    return os.path.join(base_path, "frontend", "index.html")
 
 class MainWindow(QMainWindow):
     def __init__(self):
