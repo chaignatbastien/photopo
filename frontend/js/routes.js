@@ -413,7 +413,7 @@ document.getElementById('route-panel-color').addEventListener('change', function
 document.getElementById('route-panel-delete').addEventListener('click', function () {
     if (selectedRouteId === null) return;
     const route = routesById[selectedRouteId];
-    if (!confirm('Supprimer l\'itinéraire "' + route.name + '" ?')) return;
+    //if (!confirm('Supprimer l\'itinéraire "' + route.name + '" ?')) return;
     window.api.delete_route(route.id);
     if (map.getLayer('route-' + route.id + '-layer')) map.removeLayer('route-' + route.id + '-layer');
     if (map.getSource('route-' + route.id)) map.removeSource('route-' + route.id);

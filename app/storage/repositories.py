@@ -47,16 +47,22 @@ class PointRepository:
         conn.commit()
         conn.close()
 
+    def update_tags(self, point_id, tags):
+        conn = get_connection()
+        conn.execute("UPDATE points SET tags = ? WHERE id = ?", (json.dumps(tags), point_id))
+        conn.commit()
+        conn.close()
+
 
 class RouteRepository:
-    def create(self, name, color, point_ids, geometry_coords, is_free_flags=None):
+    def create(self, name, color, point_ids, geometry_coords, is_free_flags=None, tags=None):
         if is_free_flags is None:
             is_free_flags = [False] * len(point_ids)
 
         conn = get_connection()
         cur = conn.execute(
-            "INSERT INTO routes (name, color, geometry) VALUES (?, ?, ?)",
-            (name, color, json.dumps(geometry_coords))
+            "INSERT INTO routes (name, color, geometry, tags) VALUES (?, ?, ?, ?)",
+            (name, color, json.dumps(geometry_coords), json.dumps(tags or []))
         )
         route_id = cur.lastrowid
         for order, (point_id, is_free) in enumerate(zip(point_ids, is_free_flags)):
@@ -91,10 +97,16 @@ class RouteRepository:
         conn.commit()
         conn.close()
 
+    def update_tags(self, route_id, tags):
+        conn = get_connection()
+        conn.execute("UPDATE routes SET tags = ? WHERE id = ?", (json.dumps(tags), route_id))
+        conn.commit()
+        conn.close()
+
     def get_route_points(self, route_id):
         conn = get_connection()
         rows = conn.execute("""
-            SELECT p.id, p.name, p.lat, p.lon, p.photo_filename, p.is_route_point, rp.is_free
+            SELECT p.id, p.name, p.lat, p.lon, p.photo_filename, p.is_route_point, p.tags, rp.is_free
             FROM route_points rp
             JOIN points p ON p.id = rp.point_id
             WHERE rp.route_id = ?
@@ -107,7 +119,11 @@ class RouteRepository:
         conn = get_connection()
         routes = conn.execute("SELECT * FROM routes").fetchall()
         result = [
-            {"id": r["id"], "name": r["name"], "color": r["color"], "geometry": json.loads(r["geometry"])}
+            {
+                "id": r["id"], "name": r["name"], "color": r["color"],
+                "geometry": json.loads(r["geometry"]),
+                "tags": json.loads(r["tags"]) if r["tags"] else [],
+            }
             for r in routes
         ]
         conn.close()
@@ -119,7 +135,11 @@ class RouteRepository:
         conn.close()
         if row is None:
             return None
-        return {"id": row["id"], "name": row["name"], "color": row["color"], "geometry": json.loads(row["geometry"])}
+        return {
+            "id": row["id"], "name": row["name"], "color": row["color"],
+            "geometry": json.loads(row["geometry"]),
+            "tags": json.loads(row["tags"]) if row["tags"] else [],
+        }
 
     def delete(self, route_id):
         conn = get_connection()

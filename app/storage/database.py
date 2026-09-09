@@ -23,7 +23,8 @@ def init_db():
             lat REAL NOT NULL,
             lon REAL NOT NULL,
             photo_filename TEXT,
-            is_route_point INTEGER NOT NULL DEFAULT 0
+            is_route_point INTEGER NOT NULL DEFAULT 0,
+            tags TEXT NOT NULL DEFAULT '[]'
         )
     """)
 
@@ -31,13 +32,16 @@ def init_db():
     existing_columns = [row["name"] for row in conn.execute("PRAGMA table_info(points)").fetchall()]
     if "is_route_point" not in existing_columns:
         conn.execute("ALTER TABLE points ADD COLUMN is_route_point INTEGER NOT NULL DEFAULT 0")
+    if "tags" not in existing_columns:
+        conn.execute("ALTER TABLE points ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'")
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS routes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             color TEXT NOT NULL DEFAULT '#3388ff',
-            geometry TEXT NOT NULL
+            geometry TEXT NOT NULL,
+            tags TEXT NOT NULL DEFAULT '[]'
         )
     """)
 
@@ -47,6 +51,8 @@ def init_db():
     existing_route_columns = [row["name"] for row in conn.execute("PRAGMA table_info(routes)").fetchall()]
     if "geometry" not in existing_route_columns:
         conn.execute("ALTER TABLE routes ADD COLUMN geometry TEXT NOT NULL DEFAULT '[]'")
+    if "tags" not in existing_route_columns:
+        conn.execute("ALTER TABLE routes ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'")
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS route_points (
