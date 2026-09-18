@@ -130,6 +130,13 @@
         #route-panel-edit, #route-panel-delete {
             display: block; width: 100%; margin-top: 10px; padding: 6px;
         }
+        .tag-chip {
+            display: inline-block; background: #eee; border-radius: 12px;
+            padding: 2px 8px; margin: 2px 4px 2px 0; font-size: 12px; cursor: pointer;
+        }
+        .tag-chip.active { background: #3388ff; color: white; }
+        .tag-add-input { width: 100%; font-size: 12px; padding: 4px; box-sizing: border-box; margin: 4px 0; }
+        .tag-filter-list { display: flex; flex-wrap: wrap; }
     </style>
 </head>
 <body>
@@ -155,6 +162,11 @@
         </section>
 
         <section>
+            <h3>Filtrer les photos (tags)</h3>
+            <div id="photo-tag-filters" class="tag-filter-list"></div>
+        </section>
+
+        <section>
             <h3>Itinéraires</h3>
             <div><label>Couleur : <input type="color" id="route-color" value="#3388ff"></label></div>
             <button id="btn-start-route">Commencer l'itinéraire</button>
@@ -162,6 +174,12 @@
             <button id="btn-import-gpx">Importer un GPX</button>
             <ul id="routes-list" style="list-style: none; padding: 0; margin-top: 10px;"></ul>
         </section>
+
+        <section>
+            <h3>Filtrer les itinéraires (tags)</h3>
+            <div id="route-tag-filters" class="tag-filter-list"></div>
+        </section>
+        
     </div>
 
     <div id="route-panel" class="hidden">
@@ -173,6 +191,9 @@
             <div class="route-panel-stat"><span class="label">Dénivelé +</span><span id="route-panel-gain"></span></div>
             <div class="route-panel-stat"><span class="label">Temps estimé</span><span id="route-panel-time"></span></div>
             <div class="route-panel-stat"><span class="label">Couleur</span><input type="color" id="route-panel-color"></div>
+            <div class="route-panel-stat"><span class="label">Tags</span></div>
+            <div id="route-panel-tags" class="tag-chips"></div>
+            <input type="text" id="route-panel-tag-input" class="tag-add-input" placeholder="Ajouter un tag + Entrée">
             <button id="route-panel-edit">✎ Modifier l'itinéraire</button>
             <button id="route-panel-export">Exporter en GPX</button>
             <button id="route-panel-delete">Supprimer</button>

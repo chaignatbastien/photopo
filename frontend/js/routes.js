@@ -237,7 +237,9 @@ function loadRoutes() {
             routesById[route.id] = route;
             drawRoute(route);
         });
+        updateRouteVisibility();
         refreshRoutesList(routes);
+        refreshTagFilterLists();
         if (selectedRouteId !== null && routesById[selectedRouteId]) {
             openRoutePanel(routesById[selectedRouteId]);
         }
@@ -263,6 +265,7 @@ function refreshRoutesList(routes) {
     const listEl = document.getElementById('routes-list');
     listEl.innerHTML = '';
     routes.forEach(function (route) {
+        if (!routeMatchesTagFilter(route)) return;
         const li = document.createElement('li');
         li.textContent = route.name;
         li.style.color = route.color;
@@ -378,6 +381,7 @@ function openRoutePanel(route) {
     document.getElementById('route-panel-time').textContent = formatDuration(stats.minutes);
     document.getElementById('route-panel-color').value = route.color;
 
+    renderRoutePanelTags(route);
     document.getElementById('route-panel').classList.remove('hidden');
 }
 
@@ -515,4 +519,47 @@ map.on('contextmenu', function (e) {
     if (!routeMode) return;
     e.originalEvent.preventDefault();
     addWaypoint(e.lngLat.lat, e.lngLat.lng, true, e.originalEvent.shiftKey);
+});
+
+function routeMatchesTagFilter(route) {
+    if (activeRouteTagFilters.size === 0) return true;
+    return (route.tags || []).some(t => activeRouteTagFilters.has(t));
+}
+
+function updateRouteVisibility() {
+    Object.values(routesById).forEach(function (route) {
+        const layerId = 'route-' + route.id + '-layer';
+        if (map.getLayer(layerId)) {
+            map.setLayoutProperty(layerId, 'visibility', routeMatchesTagFilter(route) ? 'visible' : 'none');
+        }
+    });
+}
+
+function renderRoutePanelTags(route) {
+    const chipsEl = document.getElementById('route-panel-tags');
+    chipsEl.innerHTML = '';
+    (route.tags || []).forEach(function (tag) {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.textContent = tag + ' ✕';
+        chip.addEventListener('click', function () {
+            route.tags = route.tags.filter(t => t !== tag);
+            window.api.update_route_tags(route.id, JSON.stringify(route.tags));
+            renderRoutePanelTags(route);
+            refreshTagFilterLists();
+        });
+        chipsEl.appendChild(chip);
+    });
+}
+
+document.getElementById('route-panel-tag-input').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || selectedRouteId === null) return;
+    const newTag = this.value.trim();
+    if (!newTag) return;
+    const route = routesById[selectedRouteId];
+    route.tags = Array.from(new Set([...(route.tags || []), newTag]));
+    window.api.update_route_tags(route.id, JSON.stringify(route.tags));
+    renderRoutePanelTags(route);
+    refreshTagFilterLists();
+    this.value = '';
 });

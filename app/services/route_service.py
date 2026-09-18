@@ -30,3 +30,6 @@ class RouteService:
 
     def delete_route(self, route_id):
         self._repo.delete(route_id)
+
+    def update_route_tags(self, route_id, tags):
+        self._repo.update_tags(route_id, tags)

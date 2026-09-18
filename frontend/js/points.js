@@ -47,6 +47,7 @@ function loadPoints() {
     window.api.get_points(function (result) {
         JSON.parse(result).forEach(addPointToMap);
         refreshPointsList();
+        refreshTagFilterLists();
     });
 }
 
@@ -79,6 +80,7 @@ function buildPopupContent(point) {
         const img = document.createElement('img');
         img.src = point.photo_url;
         container.appendChild(img);
+        container.appendChild(buildPointTagsUI(point));
     } else {
         const placeholder = document.createElement('label');
         placeholder.className = 'photo-placeholder';
@@ -170,6 +172,7 @@ function refreshPointsList() {
     listEl.innerHTML = '';
     Object.values(pointsData).forEach(function (point) {
         if (point.is_route_point && !point.photo_url) return;
+        if (!pointMatchesTagFilter(point)) return;
         const li = document.createElement('li');
         li.textContent = point.name;
         li.addEventListener('click', function () {
@@ -222,6 +225,7 @@ function updateMarkerVisibility() {
 
     Object.entries(pointMarkers).forEach(function ([pointId, marker]) {
         const isActivePopup = activePopup && String(activePopup._pointId) === String(pointId);
+        const tagOk = pointMatchesTagFilter(pointsData[pointId]);
         const shouldShow = isActivePopup || (manuallyVisible && zoomOk);
         marker.getElement().style.display = shouldShow ? 'block' : 'none';
     });
@@ -253,3 +257,84 @@ new QWebChannel(qt.webChannelTransport, function (channel) {
     loadPoints();
     loadRoutes();
 });
+
+
+const activePhotoTagFilters = new Set();
+const activeRouteTagFilters = new Set();
+
+function pointMatchesTagFilter(point) {
+    if (activePhotoTagFilters.size === 0) return true;
+    return (point.tags || []).some(t => activePhotoTagFilters.has(t));
+}
+
+function renderTagFilterSection(containerId, tagsSet, activeSet, onChange) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    Array.from(tagsSet).sort().forEach(function (tag) {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip' + (activeSet.has(tag) ? ' active' : '');
+        chip.textContent = tag;
+        chip.addEventListener('click', function () {
+            if (activeSet.has(tag)) activeSet.delete(tag); else activeSet.add(tag);
+            chip.classList.toggle('active');
+            onChange();
+        });
+        container.appendChild(chip);
+    });
+}
+
+function refreshTagFilterLists() {
+    const photoTags = new Set();
+    Object.values(pointsData).forEach(function (p) {
+        if (p.photo_url) (p.tags || []).forEach(t => photoTags.add(t));
+    });
+    renderTagFilterSection('photo-tag-filters', photoTags, activePhotoTagFilters, function () {
+        updateMarkerVisibility();
+        refreshPointsList();
+    });
+
+    const routeTags = new Set();
+    Object.values(routesById).forEach(function (r) {
+        (r.tags || []).forEach(t => routeTags.add(t));
+    });
+    renderTagFilterSection('route-tag-filters', routeTags, activeRouteTagFilters, function () {
+        updateRouteVisibility();
+        refreshRoutesList(Object.values(routesById));
+    });
+}
+
+function buildPointTagsUI(point) {
+    const wrap = document.createElement('div');
+    const chipsEl = document.createElement('div');
+    (point.tags || []).forEach(function (tag) {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.textContent = tag + ' ✕';
+        chip.addEventListener('click', function () {
+            const newTags = point.tags.filter(t => t !== tag);
+            window.api.update_point_tags(point.id, JSON.stringify(newTags));
+            pointsData[point.id].tags = newTags;
+            openPointPopup(pointsData[point.id]);
+            refreshTagFilterLists();
+        });
+        chipsEl.appendChild(chip);
+    });
+    wrap.appendChild(chipsEl);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tag-add-input';
+    input.placeholder = 'Ajouter un tag + Entrée';
+    input.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        const newTag = input.value.trim();
+        if (!newTag) return;
+        const tags = Array.from(new Set([...(point.tags || []), newTag]));
+        window.api.update_point_tags(point.id, JSON.stringify(tags));
+        pointsData[point.id].tags = tags;
+        openPointPopup(pointsData[point.id]);
+        refreshTagFilterLists();
+    });
+    wrap.appendChild(input);
+    return wrap;
+}

@@ -1,3 +1,4 @@
+import json
 import os
 from PySide6.QtCore import QUrl
 from app.storage.repositories import PointRepository
@@ -17,6 +18,9 @@ class PointService:
             point["photo_url"] = QUrl.fromLocalFile(path).toString()
         else:
             point["photo_url"] = None
+
+        raw_tags = point.get("tags")
+        point["tags"] = json.loads(raw_tags) if isinstance(raw_tags, str) else (raw_tags or [])
         return point
 
     def create_point(self, lat, lon, name):
@@ -44,3 +48,6 @@ class PointService:
 
     def rename_point(self, point_id, name):
         self._repo.update_name(point_id, name)
+
+    def update_point_tags(self, point_id, tags):
+        self._repo.update_tags(point_id, tags)

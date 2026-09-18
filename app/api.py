@@ -140,3 +140,11 @@ class Api(QObject):
             "id": route_id, "name": parsed["name"], "color": color, "geometry": geometry,
             "start_point": start_point, "end_point": end_point,
         })
+
+    @Slot(int, str)
+    def update_point_tags(self, point_id, tags_json):
+        self.point_service.update_point_tags(point_id, json.loads(tags_json))
+
+    @Slot(int, str)
+    def update_route_tags(self, route_id, tags_json):
+        self.route_service.update_route_tags(route_id, json.loads(tags_json))
