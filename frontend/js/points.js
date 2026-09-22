@@ -81,6 +81,9 @@ function buildPopupContent(point) {
         img.src = point.photo_url;
         container.appendChild(img);
         container.appendChild(buildPointTagsUI(point));
+        const dateEl = document.createElement('p');
+        dateEl.textContent = 'Prise le : ' + (point.photo_date || 'date inconnue');
+        container.appendChild(dateEl);
     } else {
         const placeholder = document.createElement('label');
         placeholder.className = 'photo-placeholder';
@@ -95,8 +98,9 @@ function buildPopupContent(point) {
             if (!file) return;
             const dataUrl = await readFileAsDataURL(file);
             window.api.add_photo_from_data(point.id, file.name, dataUrl, function (result) {
-                const photoUrl = JSON.parse(result);
-                pointsData[point.id].photo_url = photoUrl;
+                const data = JSON.parse(result);
+                pointsData[point.id].photo_url = data.photo_url;
+                pointsData[point.id].photo_date = data.photo_date;
                 pointMarkers[point.id].getElement().classList.add('has-photo');
                 openPointPopup(pointsData[point.id]);
             });
@@ -172,7 +176,7 @@ function refreshPointsList() {
     listEl.innerHTML = '';
     Object.values(pointsData).forEach(function (point) {
         if (point.is_route_point && !point.photo_url) return;
-        if (!pointMatchesTagFilter(point)) return;
+        if (!pointVisible(point)) return;
         const li = document.createElement('li');
         li.textContent = point.name;
         li.addEventListener('click', function () {
@@ -225,8 +229,8 @@ function updateMarkerVisibility() {
 
     Object.entries(pointMarkers).forEach(function ([pointId, marker]) {
         const isActivePopup = activePopup && String(activePopup._pointId) === String(pointId);
-        const tagOk = pointMatchesTagFilter(pointsData[pointId]);
-        const shouldShow = isActivePopup || (manuallyVisible && zoomOk);
+        const tagOk = pointVisible(pointsData[pointId]);
+        const shouldShow = isActivePopup || (manuallyVisible && zoomOk && tagOk);
         marker.getElement().style.display = shouldShow ? 'block' : 'none';
     });
 }
@@ -242,10 +246,13 @@ window.getPointIdAtPixel = function (x, y) {
     return null;
 };
 
-window.markerHasPhoto = function (pointId, photoUrl) {
+window.markerHasPhoto = function (pointId, data) {
     const marker = pointMarkers[pointId];
     if (marker) marker.getElement().classList.add('has-photo');
-    if (pointsData[pointId]) pointsData[pointId].photo_url = photoUrl;
+    if (pointsData[pointId]) {
+        pointsData[pointId].photo_url = data.photo_url;
+        pointsData[pointId].photo_date = data.photo_date;
+    }
     if (activePopup && String(activePopup._pointId) === String(pointId)) {
         openPointPopup(pointsData[pointId]);
     }
@@ -257,51 +264,6 @@ new QWebChannel(qt.webChannelTransport, function (channel) {
     loadPoints();
     loadRoutes();
 });
-
-
-const activePhotoTagFilters = new Set();
-const activeRouteTagFilters = new Set();
-
-function pointMatchesTagFilter(point) {
-    if (activePhotoTagFilters.size === 0) return true;
-    return (point.tags || []).some(t => activePhotoTagFilters.has(t));
-}
-
-function renderTagFilterSection(containerId, tagsSet, activeSet, onChange) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-    Array.from(tagsSet).sort().forEach(function (tag) {
-        const chip = document.createElement('span');
-        chip.className = 'tag-chip' + (activeSet.has(tag) ? ' active' : '');
-        chip.textContent = tag;
-        chip.addEventListener('click', function () {
-            if (activeSet.has(tag)) activeSet.delete(tag); else activeSet.add(tag);
-            chip.classList.toggle('active');
-            onChange();
-        });
-        container.appendChild(chip);
-    });
-}
-
-function refreshTagFilterLists() {
-    const photoTags = new Set();
-    Object.values(pointsData).forEach(function (p) {
-        if (p.photo_url) (p.tags || []).forEach(t => photoTags.add(t));
-    });
-    renderTagFilterSection('photo-tag-filters', photoTags, activePhotoTagFilters, function () {
-        updateMarkerVisibility();
-        refreshPointsList();
-    });
-
-    const routeTags = new Set();
-    Object.values(routesById).forEach(function (r) {
-        (r.tags || []).forEach(t => routeTags.add(t));
-    });
-    renderTagFilterSection('route-tag-filters', routeTags, activeRouteTagFilters, function () {
-        updateRouteVisibility();
-        refreshRoutesList(Object.values(routesById));
-    });
-}
 
 function buildPointTagsUI(point) {
     const wrap = document.createElement('div');

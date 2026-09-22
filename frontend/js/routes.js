@@ -234,6 +234,7 @@ function loadRoutes() {
     window.api.get_routes(function (result) {
         const routes = JSON.parse(result);
         routes.forEach(function (route) {
+            route.stats = computeRouteStats(route.geometry);
             routesById[route.id] = route;
             drawRoute(route);
         });
@@ -265,7 +266,7 @@ function refreshRoutesList(routes) {
     const listEl = document.getElementById('routes-list');
     listEl.innerHTML = '';
     routes.forEach(function (route) {
-        if (!routeMatchesTagFilter(route)) return;
+        if (!routeVisible(route)) return;
         const li = document.createElement('li');
         li.textContent = route.name;
         li.style.color = route.color;
@@ -417,14 +418,34 @@ document.getElementById('route-panel-color').addEventListener('change', function
 document.getElementById('route-panel-delete').addEventListener('click', function () {
     if (selectedRouteId === null) return;
     const route = routesById[selectedRouteId];
-    //if (!confirm('Supprimer l\'itinéraire "' + route.name + '" ?')) return;
-    window.api.delete_route(route.id);
-    if (map.getLayer('route-' + route.id + '-layer')) map.removeLayer('route-' + route.id + '-layer');
-    if (map.getSource('route-' + route.id)) map.removeSource('route-' + route.id);
-    delete routesById[route.id];
-    closeRoutePanel();
-    loadRoutes();
-});
+    const routeId = route.id;
+
+    window.api.get_route_points(routeId, function (result) {
+        const points = JSON.parse(result);
+        const removableIds = points
+            .filter(function (p) { return p.is_route_point && !p.photo_url; })
+            .map(function (p) { return p.id; });
+
+        window.api.delete_route(routeId);
+
+        if (map.getLayer('route-' + routeId + '-layer')) map.removeLayer('route-' + routeId + '-layer');
+        if (map.getSource('route-' + routeId)) map.removeSource('route-' + routeId);
+
+        removableIds.forEach(function (pointId) {
+            if (pointMarkers[pointId]) {
+                pointMarkers[pointId].remove();
+                delete pointMarkers[pointId];
+            }
+            delete pointsData[pointId];
+        });
+
+        delete routesById[routeId];
+        closeRoutePanel();
+        loadRoutes();
+        refreshPointsList();
+        refreshTagFilterLists();
+    });
+});       
 
 document.getElementById('route-panel-edit').addEventListener('click', function () {
     if (selectedRouteId === null) return;
@@ -521,16 +542,11 @@ map.on('contextmenu', function (e) {
     addWaypoint(e.lngLat.lat, e.lngLat.lng, true, e.originalEvent.shiftKey);
 });
 
-function routeMatchesTagFilter(route) {
-    if (activeRouteTagFilters.size === 0) return true;
-    return (route.tags || []).some(t => activeRouteTagFilters.has(t));
-}
-
 function updateRouteVisibility() {
     Object.values(routesById).forEach(function (route) {
         const layerId = 'route-' + route.id + '-layer';
         if (map.getLayer(layerId)) {
-            map.setLayoutProperty(layerId, 'visibility', routeMatchesTagFilter(route) ? 'visible' : 'none');
+            map.setLayoutProperty(layerId, 'visibility', routeVisible(route) ? 'visible' : 'none');
         }
     });
 }

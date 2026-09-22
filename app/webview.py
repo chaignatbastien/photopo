@@ -43,11 +43,11 @@ class MapWebView(QWebEngineView):
 
         def on_point_id_found(point_id):
             if point_id:
-                photo_url = self.photo_service.save_photo_for_point(
+                result = self.photo_service.save_photo_for_point(
                     self.point_repository, int(point_id), file_path
                 )
                 self.page().runJavaScript(
-                    f"markerHasPhoto({point_id}, {json.dumps(photo_url)})"
+                    f"markerHasPhoto({point_id}, {json.dumps(result)})"
                 )
 
         self.page().runJavaScript(f"getPointIdAtPixel({x}, {y})", on_point_id_found)

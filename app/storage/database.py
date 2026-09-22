@@ -23,6 +23,7 @@ def init_db():
             lat REAL NOT NULL,
             lon REAL NOT NULL,
             photo_filename TEXT,
+            photo_date TEXT,
             is_route_point INTEGER NOT NULL DEFAULT 0,
             tags TEXT NOT NULL DEFAULT '[]'
         )
@@ -98,6 +99,9 @@ def init_db():
     existing_route_points_columns = [row["name"] for row in conn.execute("PRAGMA table_info(route_points)").fetchall()]
     if "is_free" not in existing_route_points_columns:
         conn.execute("ALTER TABLE route_points ADD COLUMN is_free INTEGER NOT NULL DEFAULT 0")
+
+    if "photo_date" not in existing_columns:
+        conn.execute("ALTER TABLE points ADD COLUMN photo_date TEXT")
 
     conn.commit()
     conn.close()

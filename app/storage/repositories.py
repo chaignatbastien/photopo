@@ -29,9 +29,12 @@ class PointRepository:
         conn.commit()
         conn.close()
 
-    def set_photo(self, point_id, filename):
+    def set_photo(self, point_id, filename, photo_date=None):
         conn = get_connection()
-        conn.execute("UPDATE points SET photo_filename = ? WHERE id = ?", (filename, point_id))
+        conn.execute(
+            "UPDATE points SET photo_filename = ?, photo_date = ? WHERE id = ?",
+            (filename, photo_date, point_id)
+        )
         conn.commit()
         conn.close()
 
@@ -146,3 +149,17 @@ class RouteRepository:
         conn.execute("DELETE FROM routes WHERE id = ?", (route_id,))
         conn.commit()
         conn.close()
+
+    def get_deletable_route_point_ids(self, route_id):
+        """Points de cheminement (is_route_point=1) sans photo, propres à cet
+        itinéraire : supprimables automatiquement avec lui."""
+        conn = get_connection()
+        rows = conn.execute("""
+            SELECT p.id
+            FROM route_points rp
+            JOIN points p ON p.id = rp.point_id
+            WHERE rp.route_id = ? AND p.is_route_point = 1 AND p.photo_filename IS NULL
+        """, (route_id,)).fetchall()
+        conn.close()
+        return [row["id"] for row in rows]
+    

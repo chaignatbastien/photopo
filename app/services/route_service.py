@@ -1,10 +1,11 @@
-from app.storage.repositories import RouteRepository
+from app.storage.repositories import RouteRepository, PointRepository
 from app.services.routing_service import RoutingService
 
 
 class RouteService:
     def __init__(self):
         self._repo = RouteRepository()
+        self._point_repo = PointRepository()
         self._routing = RoutingService()
 
     def calculate_route(self, waypoints):
@@ -29,7 +30,10 @@ class RouteService:
         return self._repo.get(route_id)
 
     def delete_route(self, route_id):
+        orphan_ids = self._repo.get_deletable_route_point_ids(route_id)
         self._repo.delete(route_id)
+        for point_id in orphan_ids:
+            self._point_repo.delete(point_id)
 
     def update_route_tags(self, route_id, tags):
         self._repo.update_tags(route_id, tags)

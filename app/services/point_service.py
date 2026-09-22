@@ -19,6 +19,8 @@ class PointService:
         else:
             point["photo_url"] = None
 
+        point.setdefault("photo_date", None)
+
         raw_tags = point.get("tags")
         point["tags"] = json.loads(raw_tags) if isinstance(raw_tags, str) else (raw_tags or [])
         return point
