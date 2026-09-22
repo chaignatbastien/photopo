@@ -5,6 +5,7 @@ let currentWaypointModes = {}; // pointId -> 'path' (routé via BRouter) ou 'fre
 let currentRouteGeometry = null;
 let selectedRouteId = null;
 const routesById = {};
+const ROUTES_MIN_ZOOM = 7
 
 function getRouteColor() {
     return document.getElementById('route-color').value;
@@ -543,10 +544,15 @@ map.on('contextmenu', function (e) {
 });
 
 function updateRouteVisibility() {
+    const manuallyVisibleRoute = document.getElementById('toggle-routes').checked;
+    const zoomOkRoute = map.getZoom() >= ROUTES_MIN_ZOOM;
+
     Object.values(routesById).forEach(function (route) {
         const layerId = 'route-' + route.id + '-layer';
         if (map.getLayer(layerId)) {
-            map.setLayoutProperty(layerId, 'visibility', routeVisible(route) ? 'visible' : 'none');
+            const tagOkRoute = routeVisible(route);
+            const shouldShowRoute = manuallyVisibleRoute && zoomOkRoute && tagOkRoute;
+            map.setLayoutProperty(layerId, 'visibility', shouldShowRoute ? 'visible' : 'none');
         }
     });
 }
