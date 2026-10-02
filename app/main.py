@@ -8,7 +8,7 @@ from app.api import Api
 from app.webview import MapWebView
 from app.storage.database import init_db
 from app.storage.repositories import PointRepository
-from app.services.photo_service import PhotoService
+from app.services.photo_service import PhotoService, cleanup_orphan_photos
 from app.services.brouter_server import BRouterServer
 
 def get_frontend_path():
@@ -47,6 +47,7 @@ class MainWindow(QMainWindow):
 
 def main():
     init_db()
+    cleanup_orphan_photos()
     app = QApplication(sys.argv)
     brouter = BRouterServer()
     brouter.start()

@@ -43,7 +43,15 @@ class PointService:
         return [self._enrich(p) for p in self._repo.list_all()]
 
     def delete_point(self, point_id):
+        filename = self._repo.get_photo_filename(point_id)
         self._repo.delete(point_id)
+        if filename:
+            try:
+                os.remove(os.path.join(PHOTOS_DIR, filename))
+            except FileNotFoundError:
+                pass
+            except OSError as e:
+                print(f"[PointService] Impossible de supprimer {filename} : {e}")
 
     def move_point(self, point_id, lat, lon):
         self._repo.update_position(point_id, lat, lon)

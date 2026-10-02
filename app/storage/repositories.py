@@ -56,6 +56,18 @@ class PointRepository:
         conn.commit()
         conn.close()
 
+    def get_photo_filename(self, point_id):
+        conn = get_connection()
+        row = conn.execute("SELECT photo_filename FROM points WHERE id = ?", (point_id,)).fetchone()
+        conn.close()
+        return row["photo_filename"] if row else None
+
+    def list_photo_filenames(self):
+        conn = get_connection()
+        rows = conn.execute("SELECT photo_filename FROM points WHERE photo_filename IS NOT NULL").fetchall()
+        conn.close()
+        return {row["photo_filename"] for row in rows}    
+
 
 class RouteRepository:
     def create(self, name, color, point_ids, geometry_coords, is_free_flags=None, tags=None):
@@ -109,7 +121,7 @@ class RouteRepository:
     def get_route_points(self, route_id):
         conn = get_connection()
         rows = conn.execute("""
-            SELECT p.id, p.name, p.lat, p.lon, p.photo_filename, p.is_route_point, p.tags, rp.is_free
+            SELECT p.id, p.name, p.lat, p.lon, p.photo_filename, p.photo_date, p.is_route_point, p.tags, rp.is_free
             FROM route_points rp
             JOIN points p ON p.id = rp.point_id
             WHERE rp.route_id = ?

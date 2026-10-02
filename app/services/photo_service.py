@@ -1,6 +1,7 @@
 import base64
 import io
 import os
+import re
 import shutil
 import uuid
 from datetime import datetime
@@ -13,31 +14,48 @@ except ImportError:
     Image = None
 
 def _extract_photo_date(raw_bytes):
-    """Retourne la date de prise de vue (YYYY-MM-DD) depuis les EXIF, ou None si absente."""
+    """Retourne la date de prise de vue (YYYY-MM-DD) depuis les EXIF, ou None."""
     if Image is None:
+        print("[PhotoService] Pillow n'est pas installé : pip install pillow")
         return None
     try:
         img = Image.open(io.BytesIO(raw_bytes))
         exif = img.getexif()
         if not exif:
+            print("[PhotoService] Aucune donnée EXIF dans cette image")
             return None
 
-        raw_date = exif.get(306)  # tag "DateTime" générique (fallback)
-
-        # "DateTimeOriginal" (date réelle de prise de vue) vit dans le
-        # sous-IFD Exif, pas dans les tags de premier niveau.
+        candidates = []
         try:
-            exif_ifd = exif.get_ifd(ExifTags.IFD.Exif)
-            raw_date = exif_ifd.get(36867) or raw_date
+            exif_ifd = exif.get_ifd(0x8769)   # sous-IFD Exif (sans dépendre de ExifTags.IFD)
+            candidates += [exif_ifd.get(36867), exif_ifd.get(36868)]  # DateTimeOriginal, Digitized
         except Exception:
             pass
+        candidates.append(exif.get(306))      # DateTime (fallback)
 
-        if not raw_date:
-            return None
-        dt = datetime.strptime(raw_date.strip(), "%Y:%m:%d %H:%M:%S")
-        return dt.date().isoformat()
-    except Exception:
-        return None
+        for raw in candidates:
+            if not raw:
+                continue
+            if isinstance(raw, bytes):
+                raw = raw.decode(errors="ignore")
+            m = re.match(r"(\d{4}):(\d{2}):(\d{2})", raw.strip("\x00 \n"))
+            if m and m.group(1) != "0000":
+                return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+        print(f"[PhotoService] Aucune date trouvée dans les EXIF : {candidates}")
+    except Exception as e:
+        print(f"[PhotoService] Lecture EXIF impossible : {type(e).__name__}: {e}")
+    return None
+
+def cleanup_orphan_photos(point_repository):
+    if not os.path.isdir(PHOTOS_DIR):
+        return
+    used = point_repository.list_photo_filenames()
+    for filename in os.listdir(PHOTOS_DIR):
+        if filename not in used:
+            try:
+                os.remove(os.path.join(PHOTOS_DIR, filename))
+            except OSError:
+                pass
 
 class PhotoService:
     def save_photo_for_point(self, point_repository, point_id, source_path):
