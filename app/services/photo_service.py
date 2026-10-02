@@ -12,7 +12,6 @@ try:
 except ImportError:
     Image = None
 
-
 def _extract_photo_date(raw_bytes):
     """Retourne la date de prise de vue (YYYY-MM-DD) depuis les EXIF, ou None si absente."""
     if Image is None:
@@ -39,7 +38,6 @@ def _extract_photo_date(raw_bytes):
         return dt.date().isoformat()
     except Exception:
         return None
-
 
 class PhotoService:
     def save_photo_for_point(self, point_repository, point_id, source_path):

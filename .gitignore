@@ -8,3 +8,19 @@ wheels/
 
 # Virtual environments
 .venv
+
+# BRouter : binaires et données, à télécharger séparément
+brouter/segments4/
+brouter/jre/
+brouter/lib/
+brouter/*.jar
+brouter/*.apk
+brouter/brouter.log
+brouter/customprofiles/
+
+# profiles2 : on ignore tout sauf le profil utilisé
+brouter/profiles2/*
+!brouter/profiles2/alpine.brf
+
+# Données personnelles de l'appli
+data/
