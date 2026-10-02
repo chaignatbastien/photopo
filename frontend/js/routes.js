@@ -5,7 +5,7 @@ let currentWaypointModes = {}; // pointId -> 'path' (routé via BRouter) ou 'fre
 let currentRouteGeometry = null;
 let selectedRouteId = null;
 const routesById = {};
-const ROUTES_MIN_ZOOM = 7
+const ROUTES_MIN_ZOOM = 8
 
 function getRouteColor() {
     return document.getElementById('route-color').value;
@@ -474,6 +474,7 @@ document.getElementById('btn-import-gpx').addEventListener('click', function () 
         const route = { id: data.id, name: data.name, color: data.color, geometry: data.geometry };
         routesById[route.id] = route;
         drawRoute(route);
+        updateRouteVisibility()
         refreshRoutesList(Object.values(routesById));
         refreshPointsList();
         selectRoute(route);
@@ -556,6 +557,9 @@ function updateRouteVisibility() {
         }
     });
 }
+
+map.on('zoomend', updateRouteVisibility);
+document.getElementById('toggle-routes').addEventListener('change', updateRouteVisibility);
 
 function renderRoutePanelTags(route) {
     const chipsEl = document.getElementById('route-panel-tags');

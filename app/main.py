@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
 
 def main():
     init_db()
-    cleanup_orphan_photos()
+    cleanup_orphan_photos(PointRepository())
     app = QApplication(sys.argv)
     brouter = BRouterServer()
     brouter.start()

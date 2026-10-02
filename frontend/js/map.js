@@ -87,3 +87,15 @@ document.getElementById('toggle-wanderwege').addEventListener('change', function
         removeWanderwegeLayer();
     }
 });
+
+// ---- affichage des itinéraires dessinés
+
+map.on('style.load', function () {
+    if (document.getElementById('toggle-wanderwege').checked) {
+        addWanderwegeLayer();
+    }
+    if (typeof routesById !== 'undefined') {
+        Object.values(routesById).forEach(drawRoute);
+        updateRouteVisibility();
+    }
+});
