@@ -12,6 +12,7 @@ function getRouteColor() {
 }
 
 document.getElementById('btn-start-route').addEventListener('click', function () {
+    closeRoutePanel();
     routeMode = true;
     editingRouteId = null;
     currentWaypointIds = [];
@@ -131,6 +132,7 @@ function recalcCurrentRoute() {
         currentRouteGeometry = null;
         if (map.getLayer('current-route-layer')) map.removeLayer('current-route-layer');
         if (map.getSource('current-route')) map.removeSource('current-route');
+        hideDrawingPanel();
         return;
     }
 
@@ -182,6 +184,7 @@ function drawCurrentRouteLine() {
             paint: { 'line-color': getRouteColor(), 'line-width': 4 }
         });
     }
+    showDrawingPanel();
 }
 
 function finishRoute() {
@@ -220,6 +223,7 @@ function finishRoute() {
 
     if (map.getLayer('current-route-layer')) map.removeLayer('current-route-layer');
     if (map.getSource('current-route')) map.removeSource('current-route');
+    hideDrawingPanel();
 
     routeMode = false;
     editingRouteId = null;
@@ -372,10 +376,36 @@ function buildElevationChartSvg(profile, color) {
 
 // ---- Panneau du bas ----
 
+function showDrawingPanel() {
+    if (!currentRouteGeometry || currentRouteGeometry.length < 2) {
+        hideDrawingPanel();
+        return;
+    }
+    const stats = computeRouteStats(currentRouteGeometry);
+    const panel = document.getElementById('route-panel');
+    panel.classList.add('drawing');
+    panel.classList.remove('hidden');
+
+    document.getElementById('route-panel-chart').innerHTML =
+        buildElevationChartSvg(stats.profile, getRouteColor());
+    document.getElementById('route-panel-distance').textContent = stats.distanceKm.toFixed(1) + ' km';
+    document.getElementById('route-panel-gain').textContent =
+        stats.hasElevation ? Math.round(stats.elevationGain) + ' m' : '—';
+    document.getElementById('route-panel-time').textContent = formatDuration(stats.minutes);
+}
+
+function hideDrawingPanel() {
+    const panel = document.getElementById('route-panel');
+    if (!panel.classList.contains('drawing')) return; // ne touche pas au panneau d'un itinéraire sélectionné
+    panel.classList.remove('drawing');
+    panel.classList.add('hidden');
+}
+
 function openRoutePanel(route) {
     selectedRouteId = route.id;
     const stats = computeRouteStats(route.geometry);
 
+    document.getElementById('route-panel').classList.remove('drawing');
     document.getElementById('route-panel-chart').innerHTML = buildElevationChartSvg(stats.profile, route.color);
     document.getElementById('route-panel-name').value = route.name;
     document.getElementById('route-panel-distance').textContent = stats.distanceKm.toFixed(1) + ' km';

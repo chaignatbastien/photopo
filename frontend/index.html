@@ -62,20 +62,20 @@
     </div>
 
     <div id="route-panel" class="hidden">
-        <button id="route-panel-close">✕</button>
+        <button id="route-panel-close" class="saved-only">✕</button>
         <div id="route-panel-chart"></div>
         <div id="route-panel-info">
-            <input type="text" id="route-panel-name" class="route-panel-name-input">
+            <input type="text" id="route-panel-name" class="route-panel-name-input saved-only">
             <div class="route-panel-stat"><span class="label">Distance</span><span id="route-panel-distance"></span></div>
             <div class="route-panel-stat"><span class="label">Dénivelé +</span><span id="route-panel-gain"></span></div>
             <div class="route-panel-stat"><span class="label">Temps estimé</span><span id="route-panel-time"></span></div>
-            <div class="route-panel-stat"><span class="label">Couleur</span><input type="color" id="route-panel-color"></div>
-            <div class="route-panel-stat"><span class="label">Tags</span></div>
-            <div id="route-panel-tags" class="tag-chips"></div>
-            <input type="text" id="route-panel-tag-input" class="tag-add-input" placeholder="Ajouter un tag + Entrée">
-            <button id="route-panel-edit">✎ Modifier l'itinéraire</button>
-            <button id="route-panel-export">Exporter en GPX</button>
-            <button id="route-panel-delete">Supprimer</button>
+            <div class="route-panel-stat saved-only"><span class="label">Couleur</span><input type="color" id="route-panel-color"></div>
+            <div class="route-panel-stat saved-only"><span class="label">Tags</span></div>
+            <div id="route-panel-tags" class="tag-chips saved-only"></div>
+            <input type="text" id="route-panel-tag-input" class="tag-add-input saved-only" placeholder="Ajouter un tag + Entrée">
+            <button id="route-panel-edit" class="saved-only">✎ Modifier l'itinéraire</button>
+            <button id="route-panel-export" class="saved-only">Exporter en GPX</button>
+            <button id="route-panel-delete" class="saved-only">Supprimer</button>
         </div>
     </div>
 

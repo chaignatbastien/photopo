@@ -221,10 +221,15 @@ body,
     vertical-align: middle;
 }
 
+#route-panel.drawing .saved-only {
+    display: none;
+}
+
 #route-panel-close {
     position: absolute;
     top: 8px;
     right: 8px;
+    z-index: 1;
     border: none;
     background: none;
     cursor: pointer;
