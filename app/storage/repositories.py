@@ -138,6 +138,8 @@ class RouteRepository:
                 "id": r["id"], "name": r["name"], "color": r["color"],
                 "geometry": json.loads(r["geometry"]),
                 "tags": json.loads(r["tags"]) if r["tags"] else [],
+                "done_date": r["done_date"],
+                "actual_minutes": r["actual_minutes"],
             }
             for r in routes
         ]
@@ -154,6 +156,8 @@ class RouteRepository:
             "id": row["id"], "name": row["name"], "color": row["color"],
             "geometry": json.loads(row["geometry"]),
             "tags": json.loads(row["tags"]) if row["tags"] else [],
+            "done_date": row["done_date"],
+            "actual_minutes": row["actual_minutes"]
         }
 
     def delete(self, route_id):
@@ -174,4 +178,13 @@ class RouteRepository:
         """, (route_id,)).fetchall()
         conn.close()
         return [row["id"] for row in rows]
+
+    def update_done_info(self, route_id, done_date, actual_minutes):
+        conn = get_connection()
+        conn.execute(
+            "UPDATE routes SET done_date = ?, actual_minutes = ? WHERE id = ?",
+            (done_date, actual_minutes, route_id)
+        )
+        conn.commit()
+        conn.close()
     

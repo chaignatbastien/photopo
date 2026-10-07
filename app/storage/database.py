@@ -54,6 +54,10 @@ def init_db():
         conn.execute("ALTER TABLE routes ADD COLUMN geometry TEXT NOT NULL DEFAULT '[]'")
     if "tags" not in existing_route_columns:
         conn.execute("ALTER TABLE routes ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'")
+    if "done_date" not in existing_route_columns:
+        conn.execute("ALTER TABLE routes ADD COLUMN done_date TEXT")
+    if "actual_minutes" not in existing_route_columns:
+        conn.execute("ALTER TABLE routes ADD COLUMN actual_minutes INTEGER")
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS route_points (

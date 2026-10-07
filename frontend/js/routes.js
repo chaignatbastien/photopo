@@ -273,7 +273,9 @@ function refreshRoutesList(routes) {
     routes.forEach(function (route) {
         if (!routeVisible(route)) return;
         const li = document.createElement('li');
-        li.textContent = route.name;
+        li.textContent = route.name
+            + (route.done_date ? ' · ' + route.done_date : '')
+            + (route.actual_minutes != null ? ' · ' + formatDuration(route.actual_minutes) : '');
         li.style.color = route.color;
         li.addEventListener('click', function () { selectRoute(route); });
         listEl.appendChild(li);
@@ -411,6 +413,10 @@ function openRoutePanel(route) {
     document.getElementById('route-panel-distance').textContent = stats.distanceKm.toFixed(1) + ' km';
     document.getElementById('route-panel-gain').textContent = stats.hasElevation ? Math.round(stats.elevationGain) + ' m' : '—';
     document.getElementById('route-panel-time').textContent = formatDuration(stats.minutes);
+    document.getElementById('route-panel-done-date').value = route.done_date || '';
+    const am = route.actual_minutes;
+    document.getElementById('route-panel-actual-h').value = (am !== null && am !== undefined) ? Math.floor(am / 60) : '';
+    document.getElementById('route-panel-actual-m').value = (am !== null && am !== undefined) ? am % 60 : '';
     document.getElementById('route-panel-color').value = route.color;
 
     renderRoutePanelTags(route);
@@ -618,4 +624,26 @@ document.getElementById('route-panel-tag-input').addEventListener('keydown', fun
     renderRoutePanelTags(route);
     refreshTagFilterLists();
     this.value = '';
+});
+
+function saveDoneInfo() {
+    if (selectedRouteId === null) return;
+    const route = routesById[selectedRouteId];
+    const h = parseFloatOrNull(document.getElementById('route-panel-actual-h').value);
+    const m = parseFloatOrNull(document.getElementById('route-panel-actual-m').value);
+
+    route.done_date = document.getElementById('route-panel-done-date').value || null;
+    route.actual_minutes = (h === null && m === null) ? null : Math.round((h || 0) * 60 + (m || 0));
+
+    window.api.update_route_done_info(
+        route.id,
+        route.done_date || '',
+        route.actual_minutes === null ? -1 : route.actual_minutes
+    );
+    refreshRoutesList(Object.values(routesById));
+    updateRouteVisibility();
+}
+
+['route-panel-done-date', 'route-panel-actual-h', 'route-panel-actual-m'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', saveDoneInfo);
 });

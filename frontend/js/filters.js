@@ -41,7 +41,7 @@ function routeMatchesStatsFilter(route) {
 }
 
 function routeVisible(route) {
-    return routeMatchesTagFilter(route) && routeMatchesStatsFilter(route);
+    return routeMatchesTagFilter(route) && routeMatchesStatsFilter(route) && routeMatchesDoneFilter(route);
 }
 
 function parseFloatOrNull(v) {
@@ -85,6 +85,39 @@ function refreshTagFilterLists() {
     });
 }
 
+const activeRouteDoneFilter = { status: 'all', from: null, to: null, minReal: null, maxReal: null };
+
+function routeMatchesDoneFilter(route) {
+    const f = activeRouteDoneFilter;
+    const isDone = !!route.done_date || (route.actual_minutes !== null && route.actual_minutes !== undefined);
+
+    if (f.status === 'done' && !isDone) return false;
+    if (f.status === 'todo' && isDone) return false;
+
+    // Dès qu'une borne de date est posée, un itinéraire sans date est exclu
+    if (f.from || f.to) {
+        if (!route.done_date) return false;
+        if (f.from && route.done_date < f.from) return false;
+        if (f.to && route.done_date > f.to) return false;
+    }
+
+    // Idem pour le temps réel
+    if (f.minReal !== null || f.maxReal !== null) {
+        const t = route.actual_minutes;
+        if (t === null || t === undefined) return false;
+        if (f.minReal !== null && t < f.minReal) return false;
+        if (f.maxReal !== null && t > f.maxReal) return false;
+    }
+    return true;
+}
+
+function readDurationMinutes(hId, mId) {
+    const h = parseFloatOrNull(document.getElementById(hId).value);
+    const m = parseFloatOrNull(document.getElementById(mId).value);
+    if (h === null && m === null) return null;
+    return (h || 0) * 60 + (m || 0);
+}
+
 ['photo-date-from', 'photo-date-to', 'photo-date-include-unknown'].forEach(function (id) {
     document.getElementById(id).addEventListener('change', function () {
         activeDateFilter.from = document.getElementById('photo-date-from').value || null;
@@ -95,12 +128,26 @@ function refreshTagFilterLists() {
     });
 });
 
-['route-dist-min', 'route-dist-max', 'route-time-min', 'route-time-max'].forEach(function (id) {
+['route-dist-min', 'route-dist-max',
+ 'route-time-min-h', 'route-time-min-m', 'route-time-max-h', 'route-time-max-m'].forEach(function (id) {
     document.getElementById(id).addEventListener('change', function () {
         activeRouteStatsFilter.minKm = parseFloatOrNull(document.getElementById('route-dist-min').value);
         activeRouteStatsFilter.maxKm = parseFloatOrNull(document.getElementById('route-dist-max').value);
-        activeRouteStatsFilter.minMin = parseFloatOrNull(document.getElementById('route-time-min').value);
-        activeRouteStatsFilter.maxMin = parseFloatOrNull(document.getElementById('route-time-max').value);
+        activeRouteStatsFilter.minMin = readDurationMinutes('route-time-min-h', 'route-time-min-m');
+        activeRouteStatsFilter.maxMin = readDurationMinutes('route-time-max-h', 'route-time-max-m');
+        updateRouteVisibility();
+        refreshRoutesList(Object.values(routesById));
+    });
+});
+
+['route-done-status', 'route-done-from', 'route-done-to',
+ 'route-real-min-h', 'route-real-min-m', 'route-real-max-h', 'route-real-max-m'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', function () {
+        activeRouteDoneFilter.status = document.getElementById('route-done-status').value;
+        activeRouteDoneFilter.from = document.getElementById('route-done-from').value || null;
+        activeRouteDoneFilter.to = document.getElementById('route-done-to').value || null;
+        activeRouteDoneFilter.minReal = readDurationMinutes('route-real-min-h', 'route-real-min-m');
+        activeRouteDoneFilter.maxReal = readDurationMinutes('route-real-max-h', 'route-real-max-m');
         updateRouteVisibility();
         refreshRoutesList(Object.values(routesById));
     });

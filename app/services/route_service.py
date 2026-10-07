@@ -37,3 +37,6 @@ class RouteService:
 
     def update_route_tags(self, route_id, tags):
         self._repo.update_tags(route_id, tags)
+
+    def update_route_done_info(self, route_id, done_date, actual_minutes):
+        self._repo.update_done_info(route_id, done_date, actual_minutes)

@@ -148,3 +148,11 @@ class Api(QObject):
     @Slot(int, str)
     def update_route_tags(self, route_id, tags_json):
         self.route_service.update_route_tags(route_id, json.loads(tags_json))
+
+    @Slot(int, str, int)
+    def update_route_done_info(self, route_id, done_date, actual_minutes):
+        self.route_service.update_route_done_info(
+            route_id,
+            done_date or None,
+            actual_minutes if actual_minutes >= 0 else None
+        )
