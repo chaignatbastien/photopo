@@ -83,6 +83,8 @@ function refreshTagFilterLists() {
         updateRouteVisibility();
         refreshRoutesList(Object.values(routesById));
     });
+
+    refreshStatsFilterBounds();
 }
 
 const activeRouteDoneFilter = { status: 'all', from: null, to: null, minReal: null, maxReal: null };
@@ -118,6 +120,96 @@ function readDurationMinutes(hId, mId) {
     return (h || 0) * 60 + (m || 0);
 }
 
+// ---- Curseurs distance / durée (double poignée) ----
+// Une poignée au bout de sa course = pas de filtre de ce côté (null).
+const rangeSliders = [
+    {
+        minId: 'route-dist-min', maxId: 'route-dist-max',
+        fillId: 'route-dist-fill', labelId: 'route-dist-label',
+        minKey: 'minKm', maxKey: 'maxKm', statKey: 'distanceKm',
+        roundTo: 1,   // la borne haute est arrondie au km supérieur
+        format: function (v) { return v.toFixed(1) + ' km'; }
+    },
+    {
+        minId: 'route-time-min', maxId: 'route-time-max',
+        fillId: 'route-time-fill', labelId: 'route-time-label',
+        minKey: 'minMin', maxKey: 'maxMin', statKey: 'minutes',
+        roundTo: 10,  // arrondie aux 10 min supérieures
+        format: formatDuration   // défini dans routes.js → "8 h 30"
+    }
+];
+
+function updateRangeUI(cfg) {
+    const minEl = document.getElementById(cfg.minId);
+    const maxEl = document.getElementById(cfg.maxId);
+    const lo = +minEl.min, hi = +minEl.max;
+    const span = (hi - lo) || 1;
+    const a = (+minEl.value - lo) / span;
+    const b = (+maxEl.value - lo) / span;
+
+    const fill = document.getElementById(cfg.fillId);
+    fill.style.left = 'calc(8px + (100% - 16px) * ' + a + ')';
+    fill.style.right = 'calc(8px + (100% - 16px) * ' + (1 - b) + ')';
+
+    // Si les deux poignées sont collées en haut, celle du min doit rester
+    // attrapable (sinon elle serait cachée sous celle du max).
+    minEl.style.zIndex = (+minEl.value > (lo + hi) / 2) ? 3 : 2;
+    maxEl.style.zIndex = 2;
+
+    document.getElementById(cfg.labelId).textContent =
+        cfg.format(+minEl.value) + ' – ' + cfg.format(+maxEl.value);
+}
+
+function onRangeInput(cfg, changed) {
+    const minEl = document.getElementById(cfg.minId);
+    const maxEl = document.getElementById(cfg.maxId);
+
+    // Empêche le min de dépasser le max (et inversement)
+    if (+minEl.value > +maxEl.value) {
+        if (changed === 'min') minEl.value = maxEl.value;
+        else maxEl.value = minEl.value;
+    }
+
+    activeRouteStatsFilter[cfg.minKey] = +minEl.value > +minEl.min ? +minEl.value : null;
+    activeRouteStatsFilter[cfg.maxKey] = +maxEl.value < +maxEl.max ? +maxEl.value : null;
+
+    updateRangeUI(cfg);
+    updateRouteVisibility();
+    refreshRoutesList(Object.values(routesById));
+}
+
+// Recalcule les bornes des curseurs d'après les itinéraires existants,
+// en conservant la sélection de l'utilisateur quand c'est possible.
+function refreshStatsFilterBounds() {
+    const routes = Object.values(routesById);
+    rangeSliders.forEach(function (cfg) {
+        const maxVal = routes.reduce(function (m, r) {
+            const stats = r.stats || computeRouteStats(r.geometry);
+            return Math.max(m, stats[cfg.statKey]);
+        }, 0);
+        const ceiling = Math.max(cfg.roundTo, Math.ceil(maxVal / cfg.roundTo) * cfg.roundTo);
+
+        const minEl = document.getElementById(cfg.minId);
+        const maxEl = document.getElementById(cfg.maxId);
+        minEl.max = ceiling;
+        maxEl.max = ceiling;
+
+        const fMin = activeRouteStatsFilter[cfg.minKey];
+        const fMax = activeRouteStatsFilter[cfg.maxKey];
+        minEl.value = fMin !== null ? Math.min(fMin, ceiling) : 0;
+        maxEl.value = fMax !== null ? Math.min(fMax, ceiling) : ceiling;
+
+        updateRangeUI(cfg);
+    });
+}
+
+rangeSliders.forEach(function (cfg) {
+    document.getElementById(cfg.minId).addEventListener('input', function () { onRangeInput(cfg, 'min'); });
+    document.getElementById(cfg.maxId).addEventListener('input', function () { onRangeInput(cfg, 'max'); });
+});
+
+refreshStatsFilterBounds();
+
 ['photo-date-from', 'photo-date-to', 'photo-date-include-unknown'].forEach(function (id) {
     document.getElementById(id).addEventListener('change', function () {
         activeDateFilter.from = document.getElementById('photo-date-from').value || null;
@@ -128,17 +220,7 @@ function readDurationMinutes(hId, mId) {
     });
 });
 
-['route-dist-min', 'route-dist-max',
- 'route-time-min-h', 'route-time-min-m', 'route-time-max-h', 'route-time-max-m'].forEach(function (id) {
-    document.getElementById(id).addEventListener('change', function () {
-        activeRouteStatsFilter.minKm = parseFloatOrNull(document.getElementById('route-dist-min').value);
-        activeRouteStatsFilter.maxKm = parseFloatOrNull(document.getElementById('route-dist-max').value);
-        activeRouteStatsFilter.minMin = readDurationMinutes('route-time-min-h', 'route-time-min-m');
-        activeRouteStatsFilter.maxMin = readDurationMinutes('route-time-max-h', 'route-time-max-m');
-        updateRouteVisibility();
-        refreshRoutesList(Object.values(routesById));
-    });
-});
+
 
 ['route-done-status', 'route-done-from', 'route-done-to',
  'route-real-min-h', 'route-real-min-m', 'route-real-max-h', 'route-real-max-m'].forEach(function (id) {

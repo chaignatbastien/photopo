@@ -279,10 +279,74 @@ body,
     margin-top: 4px;
 }
 
-.stats-filter-row label {
-    display: block;
+.range-filter {
+    margin-top: 10px;
+}
+
+.range-filter-header {
+    display: flex;
+    justify-content: space-between;
     font-size: 12px;
-    margin-top: 4px;
+    margin-bottom: 2px;
+}
+
+.range-filter-header span:last-child {
+    color: #3388ff;
+    font-weight: bold;
+}
+
+/* Deux <input type="range"> superposés = un curseur à deux poignées */
+.dual-range {
+    position: relative;
+    height: 24px;
+}
+
+.dual-range-track,
+.dual-range-fill {
+    position: absolute;
+    top: 50%;
+    height: 4px;
+    transform: translateY(-50%);
+    border-radius: 2px;
+}
+
+.dual-range-track {
+    left: 8px;
+    right: 8px;
+    background: #ddd;
+}
+
+.dual-range-fill {
+    background: #3388ff;
+}
+
+.dual-range input[type="range"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 24px;
+    margin: 0;
+    background: none;
+    pointer-events: none;      /* la barre ne capte pas les clics... */
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.dual-range input[type="range"]::-webkit-slider-runnable-track {
+    background: transparent;
+}
+
+.dual-range input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    pointer-events: auto;      /* ...mais les poignées, oui */
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #3388ff;
+    border: 2px solid white;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
 }
 
 .duration-inputs input {

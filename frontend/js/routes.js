@@ -513,6 +513,7 @@ document.getElementById('btn-import-gpx').addEventListener('click', function () 
         updateRouteVisibility()
         refreshRoutesList(Object.values(routesById));
         refreshPointsList();
+        refreshStatsFilterBounds();
         selectRoute(route);
     });
 });
