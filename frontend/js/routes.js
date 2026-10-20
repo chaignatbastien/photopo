@@ -414,9 +414,7 @@ function openRoutePanel(route) {
     document.getElementById('route-panel-gain').textContent = stats.hasElevation ? Math.round(stats.elevationGain) + ' m' : '—';
     document.getElementById('route-panel-time').textContent = formatDuration(stats.minutes);
     document.getElementById('route-panel-done-date').value = route.done_date || '';
-    const am = route.actual_minutes;
-    document.getElementById('route-panel-actual-h').value = (am !== null && am !== undefined) ? Math.floor(am / 60) : '';
-    document.getElementById('route-panel-actual-m').value = (am !== null && am !== undefined) ? am % 60 : '';
+    setRealTimeInputs(route.actual_minutes);
     document.getElementById('route-panel-color').value = route.color;
 
     renderRoutePanelTags(route);
@@ -426,6 +424,18 @@ function openRoutePanel(route) {
 function closeRoutePanel() {
     selectedRouteId = null;
     document.getElementById('route-panel').classList.add('hidden');
+}
+
+function setRealTimeInputs(minutes) {
+    const h = document.getElementById('route-panel-real-h');
+    const m = document.getElementById('route-panel-real-m');
+    if (minutes == null) {
+        h.value = '';
+        m.value = '';
+    } else {
+        h.value = Math.floor(minutes / 60);
+        m.value = minutes % 60;
+    }
 }
 
 document.getElementById('route-panel-close').addEventListener('click', closeRoutePanel);
@@ -630,21 +640,30 @@ document.getElementById('route-panel-tag-input').addEventListener('keydown', fun
 function saveDoneInfo() {
     if (selectedRouteId === null) return;
     const route = routesById[selectedRouteId];
-    const h = parseFloatOrNull(document.getElementById('route-panel-actual-h').value);
-    const m = parseFloatOrNull(document.getElementById('route-panel-actual-m').value);
+
+    const hStr = document.getElementById('route-panel-real-h').value.trim();
+    const mStr = document.getElementById('route-panel-real-m').value.trim();
+    let minutes = null;  // champs vides (ou 0) = temps non renseigné
+    if (hStr !== '' || mStr !== '') {
+        const total = (parseInt(hStr, 10) || 0) * 60 + (parseInt(mStr, 10) || 0);
+        if (total > 0) minutes = total;
+    }
 
     route.done_date = document.getElementById('route-panel-done-date').value || null;
-    route.actual_minutes = (h === null && m === null) ? null : Math.round((h || 0) * 60 + (m || 0));
+    route.actual_minutes = minutes;
 
     window.api.update_route_done_info(
         route.id,
         route.done_date || '',
-        route.actual_minutes === null ? -1 : route.actual_minutes
+        minutes === null ? -1 : minutes
     );
+
+    setRealTimeInputs(minutes);      // normalise : 90 min saisies → 1 h 30
+    refreshStatsFilterBounds();      // le curseur « Durée réelle » s'adapte
     refreshRoutesList(Object.values(routesById));
     updateRouteVisibility();
 }
 
-['route-panel-done-date', 'route-panel-actual-h', 'route-panel-actual-m'].forEach(function (id) {
+['route-panel-done-date', 'route-panel-real-h', 'route-panel-real-m'].forEach(function (id) {
     document.getElementById(id).addEventListener('change', saveDoneInfo);
 });

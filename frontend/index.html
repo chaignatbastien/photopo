@@ -88,21 +88,18 @@
                 </label>
                 <label>Fait du <input type="date" id="route-done-from"></label>
                 <label>au <input type="date" id="route-done-to"></label>
-                <label>Temps réel min
-                    <span class="duration-inputs">
-                        <input type="number" id="route-real-min-h" min="0" placeholder="h"> h
-                        <input type="number" id="route-real-min-m" min="0" placeholder="min"> min
-                    </span>
-                </label>
-                <label>Temps réel max
-                    <span class="duration-inputs">
-                        <input type="number" id="route-real-max-h" min="0" placeholder="h"> h
-                        <input type="number" id="route-real-max-m" min="0" placeholder="min"> min
-                    </span>
-                </label>
+                <div class="range-filter-header">
+                    <span>Durée réelle</span>
+                    <span id="route-real-label"></span>
+                </div>
+                <div class="dual-range">
+                    <div class="dual-range-track"></div>
+                    <div class="dual-range-fill" id="route-real-fill"></div>
+                    <input type="range" id="route-real-min" min="0" max="600" step="5" value="0">
+                    <input type="range" id="route-real-max" min="0" max="600" step="5" value="600">
+                </div>
             </div>
         </section>
-        
     </div>
 
     <div id="route-panel" class="hidden">
@@ -119,9 +116,9 @@
             </div>
             <div class="route-panel-stat saved-only">
                 <span class="label">Temps réel</span>
-                <span>
-                    <input type="number" id="route-panel-actual-h" min="0" placeholder="h" style="width:44px"> h
-                    <input type="number" id="route-panel-actual-m" min="0" max="59" placeholder="min" style="width:44px"> min
+                <span class="real-time-inputs">
+                    <input type="number" id="route-panel-real-h" min="0" placeholder="h"> h
+                    <input type="number" id="route-panel-real-m" min="0" max="59" placeholder="min"> min
                 </span>
             </div>
             <div class="route-panel-stat saved-only"><span class="label">Couleur</span><input type="color" id="route-panel-color"></div>

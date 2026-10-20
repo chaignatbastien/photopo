@@ -295,6 +295,18 @@ body,
     font-weight: bold;
 }
 
+.real-time-inputs input {
+    width: 44px;
+    padding: 2px;
+    text-align: right;
+}
+
+.stats-filter-row label {
+    display: block;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
 /* Deux <input type="range"> superposés = un curseur à deux poignées */
 .dual-range {
     position: relative;

@@ -6,7 +6,11 @@
 const activePhotoTagFilters = new Set();
 const activeRouteTagFilters = new Set();
 const activeDateFilter = { from: null, to: null, includeUnknown: true };
-const activeRouteStatsFilter = { minKm: null, maxKm: null, minMin: null, maxMin: null };
+const activeRouteStatsFilter = {
+    minKm: null, maxKm: null,
+    minMin: null, maxMin: null,
+    minReal: null, maxReal: null
+};
 
 function pointMatchesTagFilter(point) {
     if (activePhotoTagFilters.size === 0) return true;
@@ -87,10 +91,11 @@ function refreshTagFilterLists() {
     refreshStatsFilterBounds();
 }
 
-const activeRouteDoneFilter = { status: 'all', from: null, to: null, minReal: null, maxReal: null };
+const activeRouteDoneFilter = { status: 'all', from: null, to: null };
 
 function routeMatchesDoneFilter(route) {
     const f = activeRouteDoneFilter;
+    const s = activeRouteStatsFilter;   // les curseurs écrivent ici
     const isDone = !!route.done_date || (route.actual_minutes !== null && route.actual_minutes !== undefined);
 
     if (f.status === 'done' && !isDone) return false;
@@ -103,21 +108,14 @@ function routeMatchesDoneFilter(route) {
         if (f.to && route.done_date > f.to) return false;
     }
 
-    // Idem pour le temps réel
-    if (f.minReal !== null || f.maxReal !== null) {
+    // Idem pour le temps réel (curseur réellement réduit)
+    if (s.minReal !== null || s.maxReal !== null) {
         const t = route.actual_minutes;
         if (t === null || t === undefined) return false;
-        if (f.minReal !== null && t < f.minReal) return false;
-        if (f.maxReal !== null && t > f.maxReal) return false;
+        if (s.minReal !== null && t < s.minReal) return false;
+        if (s.maxReal !== null && t > s.maxReal) return false;
     }
     return true;
-}
-
-function readDurationMinutes(hId, mId) {
-    const h = parseFloatOrNull(document.getElementById(hId).value);
-    const m = parseFloatOrNull(document.getElementById(mId).value);
-    if (h === null && m === null) return null;
-    return (h || 0) * 60 + (m || 0);
 }
 
 // ---- Curseurs distance / durée (double poignée) ----
@@ -126,16 +124,23 @@ const rangeSliders = [
     {
         minId: 'route-dist-min', maxId: 'route-dist-max',
         fillId: 'route-dist-fill', labelId: 'route-dist-label',
-        minKey: 'minKm', maxKey: 'maxKm', statKey: 'distanceKm',
-        roundTo: 1,   // la borne haute est arrondie au km supérieur
+        minKey: 'minKm', maxKey: 'maxKm', roundTo: 1,
+        getValue: function (r) { return (r.stats || computeRouteStats(r.geometry)).distanceKm; },
         format: function (v) { return v.toFixed(1) + ' km'; }
     },
     {
         minId: 'route-time-min', maxId: 'route-time-max',
         fillId: 'route-time-fill', labelId: 'route-time-label',
-        minKey: 'minMin', maxKey: 'maxMin', statKey: 'minutes',
-        roundTo: 10,  // arrondie aux 10 min supérieures
-        format: formatDuration   // défini dans routes.js → "8 h 30"
+        minKey: 'minMin', maxKey: 'maxMin', roundTo: 10,
+        getValue: function (r) { return (r.stats || computeRouteStats(r.geometry)).minutes; },
+        format: formatDuration
+    },
+    {
+        minId: 'route-real-min', maxId: 'route-real-max',
+        fillId: 'route-real-fill', labelId: 'route-real-label',
+        minKey: 'minReal', maxKey: 'maxReal', roundTo: 10,
+        getValue: function (r) { return r.actual_minutes; },   // et non real_minutes
+        format: formatDuration
     }
 ];
 
@@ -184,8 +189,8 @@ function refreshStatsFilterBounds() {
     const routes = Object.values(routesById);
     rangeSliders.forEach(function (cfg) {
         const maxVal = routes.reduce(function (m, r) {
-            const stats = r.stats || computeRouteStats(r.geometry);
-            return Math.max(m, stats[cfg.statKey]);
+            const v = cfg.getValue(r);
+            return v == null ? m : Math.max(m, v);
         }, 0);
         const ceiling = Math.max(cfg.roundTo, Math.ceil(maxVal / cfg.roundTo) * cfg.roundTo);
 
@@ -221,15 +226,11 @@ refreshStatsFilterBounds();
 });
 
 
-
-['route-done-status', 'route-done-from', 'route-done-to',
- 'route-real-min-h', 'route-real-min-m', 'route-real-max-h', 'route-real-max-m'].forEach(function (id) {
+['route-done-status', 'route-done-from', 'route-done-to'].forEach(function (id) {
     document.getElementById(id).addEventListener('change', function () {
         activeRouteDoneFilter.status = document.getElementById('route-done-status').value;
         activeRouteDoneFilter.from = document.getElementById('route-done-from').value || null;
         activeRouteDoneFilter.to = document.getElementById('route-done-to').value || null;
-        activeRouteDoneFilter.minReal = readDurationMinutes('route-real-min-h', 'route-real-min-m');
-        activeRouteDoneFilter.maxReal = readDurationMinutes('route-real-max-h', 'route-real-max-m');
         updateRouteVisibility();
         refreshRoutesList(Object.values(routesById));
     });
