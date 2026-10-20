@@ -68,6 +68,21 @@ class PointRepository:
         conn.close()
         return {row["photo_filename"] for row in rows}    
 
+    def list_photos_without_date(self):
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT id, photo_filename FROM points "
+            "WHERE photo_filename IS NOT NULL AND photo_date IS NULL"
+        ).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+
+    def set_photo_date(self, point_id, photo_date):
+        conn = get_connection()
+        conn.execute("UPDATE points SET photo_date = ? WHERE id = ?", (photo_date, point_id))
+        conn.commit()
+        conn.close()
+
 
 class RouteRepository:
     def create(self, name, color, point_ids, geometry_coords, is_free_flags=None, tags=None):

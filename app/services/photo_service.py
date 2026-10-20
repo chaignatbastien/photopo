@@ -57,6 +57,17 @@ def cleanup_orphan_photos(point_repository):
             except OSError:
                 pass
 
+def backfill_photo_dates(point_repository):
+    for row in point_repository.list_photos_without_date():
+        path = os.path.join(PHOTOS_DIR, row["photo_filename"])
+        try:
+            with open(path, "rb") as f:
+                date = _extract_photo_date(f.read())
+        except OSError:
+            continue
+        if date:
+            point_repository.set_photo_date(row["id"], date)
+
 class PhotoService:
     def save_photo_for_point(self, point_repository, point_id, source_path):
         os.makedirs(PHOTOS_DIR, exist_ok=True)
