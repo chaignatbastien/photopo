@@ -11,47 +11,52 @@
 
     <button id="sidebar-toggle">☰</button>
     <div id="sidebar">
-        <section>
-            <h3>Fond de carte</h3>
-            <div><label><input type="radio" name="base" value="carteNationale" checked> Carte nationale</label></div>
-            <div><label><input type="radio" name="base" value="photocarte"> Photocarte</label></div>
-        </section>
+        <!-- ===== AFFICHAGE ===== -->
+        <section class="panel-section open" data-panel="affichage">
+            <h3 class="panel-header">Affichage <span class="chevron">▾</span></h3>
+            <div class="panel-body">
+                <h4>Fond de carte</h4>
+                <div><label><input type="radio" name="base" value="carteNationale" checked> Carte nationale</label></div>
+                <div><label><input type="radio" name="base" value="photocarte"> Photocarte</label></div>
 
-        <section>
-            <h3>Couches</h3>
-            <div><label><input type="checkbox" id="toggle-wanderwege"> Chemins de randonnée</label></div>
-            <div><label><input type="checkbox" id="toggle-points" checked> Points</label></div>
-            <div><label><input type="checkbox" id="toggle-routes" checked> Itinéraires</label></div>
-        </section>
-
-        <section>
-            <h3 id="points-list-toggle" style="cursor: pointer;">Points ▾</h3>
-            <ul id="points-list" style="list-style: none; padding: 0; margin: 0;"></ul>
-        </section>
-
-        <section>
-            <h3>Filtrer les photos (tags)</h3>
-            <div id="photo-tag-filters" class="tag-filter-list"></div>
-            <div class="date-filter-row">
-                <label>Du <input type="date" id="photo-date-from"></label>
-                <label>au <input type="date" id="photo-date-to"></label>
-                <label><input type="checkbox" id="photo-date-include-unknown" checked> Inclure dates inconnues</label>
+                <h4>Couches</h4>
+                <div><label><input type="checkbox" id="toggle-wanderwege"> Chemins de randonnée</label></div>
+                <div><label><input type="checkbox" id="toggle-points" checked> Points</label></div>
+                <div><label><input type="checkbox" id="toggle-routes" checked> Itinéraires</label></div>
             </div>
         </section>
 
-        <section>
-            <h3>Itinéraires</h3>
-            <div><label>Couleur : <input type="color" id="route-color" value="#3388ff"></label></div>
-            <button id="btn-start-route">Commencer l'itinéraire</button>
-            <button id="btn-end-route" style="display: none;">Terminer l'itinéraire</button>
-            <button id="btn-import-gpx">Importer un GPX</button>
-            <ul id="routes-list" style="list-style: none; padding: 0; margin-top: 10px;"></ul>
+        <!-- ===== POINTS DE VUE ===== -->
+        <section class="panel-section" data-panel="points">
+            <h3 class="panel-header">Points de vue <span class="chevron">▸</span></h3>
+            <div class="panel-body">
+                <h4 id="points-list-toggle" style="cursor: pointer;">Liste ▾</h4>
+                <ul id="points-list" style="list-style: none; padding: 0; margin: 0;"></ul>
+
+                <h4>Filtres</h4>
+                <div id="photo-tag-filters" class="tag-filter-list"></div>
+                <div class="date-filter-row">
+                    <label>Du <input type="date" id="photo-date-from"></label>
+                    <label>au <input type="date" id="photo-date-to"></label>
+                    <label><input type="checkbox" id="photo-date-include-unknown" checked> Inclure dates inconnues</label>
+                </div>
+            </div>
         </section>
 
-        <section>
-            <h3>Filtrer les itinéraires (tags)</h3>
-            <div id="route-tag-filters" class="tag-filter-list"></div>
-            <div class="stats-filter-row">
+        <!-- ===== ITINÉRAIRES ===== -->
+        <section class="panel-section" data-panel="itineraires">
+            <h3 class="panel-header">Itinéraires <span class="chevron">▸</span></h3>
+            <div class="panel-body">
+                <div><label>Couleur : <input type="color" id="route-color" value="#3388ff"></label></div>
+                <button id="btn-start-route">Commencer l'itinéraire</button>
+                <button id="btn-end-route" style="display: none;">Terminer l'itinéraire</button>
+                <button id="btn-import-gpx">Importer un GPX</button>
+                <ul id="routes-list" style="list-style: none; padding: 0; margin-top: 10px;"></ul>
+
+                <h4>Filtres</h4>
+                <div id="route-tag-filters" class="tag-filter-list"></div>
+                <div class="stats-filter-row">
+                    <div class="stats-filter-row">
                 <div class="range-filter">
                     <div class="range-filter-header">
                         <span>Distance</span>

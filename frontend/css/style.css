@@ -364,3 +364,44 @@ body,
 .duration-inputs input {
     width: 48px;
 }
+
+/* ---- Menu en accordéon ---- */
+.panel-section {
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 0 !important;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 !important;
+    padding: 12px 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.panel-header:hover {
+    color: #3388ff;
+}
+
+.panel-body {
+    display: none;
+    padding-bottom: 14px;
+}
+
+.panel-section.open .panel-body {
+    display: block;
+}
+
+.panel-body h4 {
+    margin: 14px 0 6px;
+    font-size: 13px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.panel-body h4:first-child {
+    margin-top: 0;
+}
