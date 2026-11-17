@@ -18,6 +18,7 @@ function showDrawingPanel() {
     document.getElementById('route-panel-gain').textContent =
         stats.hasElevation ? Math.round(stats.elevationGain) + ' m' : '—';
     document.getElementById('route-panel-time').textContent = formatDuration(stats.minutes);
+    updatePersonalTime(stats);
 }
 
 function hideDrawingPanel() {
@@ -37,6 +38,7 @@ function openRoutePanel(route) {
     document.getElementById('route-panel-distance').textContent = stats.distanceKm.toFixed(1) + ' km';
     document.getElementById('route-panel-gain').textContent = stats.hasElevation ? Math.round(stats.elevationGain) + ' m' : '—';
     document.getElementById('route-panel-time').textContent = formatDuration(stats.minutes);
+    updatePersonalTime(stats, route.id);
     document.getElementById('route-panel-done-date').value = route.done_date || '';
     setRealTimeInputs(route.actual_minutes);
     document.getElementById('route-panel-color').value = route.color;
@@ -210,6 +212,7 @@ function saveDoneInfo() {
     refreshStatsFilterBounds();      // le curseur « Durée réelle » s'adapte
     refreshRoutesList(Object.values(routesById));
     updateRouteVisibility();
+    updatePersonalTime(computeRouteStats(route.geometry), route.id);
 }
 
 ['route-panel-done-date', 'route-panel-real-h', 'route-panel-real-m'].forEach(function (id) {
