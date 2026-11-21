@@ -37,6 +37,8 @@ const map = new maplibregl.Map({
     zoom: 8,
 });
 
+map.boxZoom.disable();
+
 // ---- 4. Gestion de la couche "chemins de randonnée" ----
 // On l'isole dans une fonction car elle doit pouvoir être "réappliquée"
 // après chaque changement de fond de carte (voir point 5).

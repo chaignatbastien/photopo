@@ -77,6 +77,11 @@ function addWaypoint(lat, lon, insertAsVia, isFree) {
     const name = currentWaypointIds.length === 0 ? 'Départ' : (isFree ? 'Point libre' : 'Point');
     const insertIndex = insertAsVia ? findInsertionIndex(lat, lon) : currentWaypointIds.length;
 
+    if (insertAsVia && insertIndex < currentWaypointIds.length) {
+        // le segment coupé est celui qui arrive au point suivant
+        if (currentWaypointModes[currentWaypointIds[insertIndex]] === 'free') isFree = true;
+    }
+
     window.api.add_route_point(lat, lon, name, function (result) {
         const point = JSON.parse(result);
         pointsData[point.id] = point;  // réutilise le registre partagé (points.js)
@@ -115,7 +120,7 @@ function buildSegments(waypointIds) {
     for (let i = 1; i < waypointIds.length; i++) {
         const prevId = waypointIds[i - 1];
         const currId = waypointIds[i];
-        const edgeIsFree = currentWaypointModes[prevId] === 'free' || currentWaypointModes[currId] === 'free';
+        const edgeIsFree = currentWaypointModes[currId] === 'free';
 
         if (edgeIsFree) {
             if (currentPathRun.length >= 2) segments.push({ type: 'path', ids: currentPathRun });
