@@ -2,22 +2,33 @@
 // Dépend de route-stats.js (calculs) et routes.js (routesById, selectedRouteId).
 // startEditingRoute (route-drawing.js) n'est appelée qu'au clic, donc l'ordre n'importe pas.
 
+function formatElevation(stats) {
+    if (!stats.hasElevation) return '—';
+    return '<span class="elev-up">+ ' + Math.round(stats.elevationGain) + ' m</span>'
+         + '<span class="elev-down">− ' + Math.round(stats.elevationLoss) + ' m</span>';
+}
+
 function showDrawingPanel() {
-    if (!currentRouteGeometry || currentRouteGeometry.length < 2) {
-        hideDrawingPanel();
-        return;
-    }
-    const stats = computeRouteStats(currentRouteGeometry);
     const panel = document.getElementById('route-panel');
     panel.classList.add('drawing');
     panel.classList.remove('hidden');
-
     document.getElementById('route-panel-name').value = currentRouteName;
+
+    if (!currentRouteGeometry || currentRouteGeometry.length < 2) {
+        document.getElementById('route-panel-chart').innerHTML =
+            '<div class="route-panel-chart-empty">Clique sur la carte pour placer le départ, puis les points suivants.</div>';
+        ['route-panel-distance', 'route-panel-elevation', 'route-panel-time'].forEach(function (id) {
+            document.getElementById(id).textContent = '—';
+        });
+        document.getElementById('route-panel-time-perso').parentElement.style.display = 'none';
+        return;
+    }
+
+    const stats = computeRouteStats(currentRouteGeometry);
     document.getElementById('route-panel-chart').innerHTML =
         buildElevationChartSvg(stats.profile, getRouteColor());
     document.getElementById('route-panel-distance').textContent = stats.distanceKm.toFixed(1) + ' km';
-    document.getElementById('route-panel-gain').textContent =
-        stats.hasElevation ? Math.round(stats.elevationGain) + ' m' : '—';
+    document.getElementById('route-panel-elevation').innerHTML = formatElevation(stats);
     document.getElementById('route-panel-time').textContent = formatDuration(stats.minutes);
     updatePersonalTime(stats);
 }
@@ -37,7 +48,7 @@ function openRoutePanel(route) {
     document.getElementById('route-panel-chart').innerHTML = buildElevationChartSvg(stats.profile, route.color);
     document.getElementById('route-panel-name').value = route.name;
     document.getElementById('route-panel-distance').textContent = stats.distanceKm.toFixed(1) + ' km';
-    document.getElementById('route-panel-gain').textContent = stats.hasElevation ? Math.round(stats.elevationGain) + ' m' : '—';
+    document.getElementById('route-panel-elevation').innerHTML = formatElevation(stats);
     document.getElementById('route-panel-time').textContent = formatDuration(stats.minutes);
     updatePersonalTime(stats, route.id);
     document.getElementById('route-panel-done-date').value = route.done_date || '';

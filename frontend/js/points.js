@@ -114,6 +114,23 @@ function buildPopupContent(point) {
     coords.textContent = `Lat : ${point.lat.toFixed(5)} — Lon : ${point.lon.toFixed(5)}`;
     container.appendChild(coords);
 
+    if (typeof routeMode !== 'undefined' && routeMode && typeof currentWaypointIds !== 'undefined') {
+        const idx = currentWaypointIds.indexOf(point.id);
+        if (idx > 0) {   // le départ n'a pas de segment d'arrivée
+            const isFree = currentWaypointModes[point.id] === 'free';
+            const btnMode = document.createElement('button');
+            btnMode.textContent = isFree ? 'Relier par les sentiers' : 'Relier en ligne droite';
+            btnMode.addEventListener('click', function () {
+                const nowFree = currentWaypointModes[point.id] !== 'free';
+                currentWaypointModes[point.id] = nowFree ? 'free' : 'path';
+                pointMarkers[point.id].getElement().classList.toggle('free-point', nowFree);
+                if (activePopup) { activePopup.remove(); activePopup = null; }
+                recalcCurrentRoute();
+            });
+            container.appendChild(btnMode);
+        }
+    }
+
     const btnDelete = document.createElement('button');
     btnDelete.textContent = 'Supprimer';
     btnDelete.addEventListener('click', function () {

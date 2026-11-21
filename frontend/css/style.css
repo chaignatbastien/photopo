@@ -234,6 +234,14 @@ body,
     padding: 6px;
 }
 
+.draw-mode-toggle {
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.elev-up   { color: #2e7d32; }
+.elev-down { color: #c62828; margin-left: 12px; }
+
 #route-panel-close {
     position: absolute;
     top: 8px;

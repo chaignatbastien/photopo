@@ -16,6 +16,7 @@ function computeRouteStats(geometry) {
     // ligne droite n'en ont pas).
     let distanceKm = 0;
     let elevationGain = 0;
+    let elevationLoss = 0;
     let hasElevation = false;
     const profile = [];
 
@@ -27,8 +28,9 @@ function computeRouteStats(geometry) {
         if (typeof ele === 'number') {
             hasElevation = true;
             const prevEle = geometry[i - 1] ? geometry[i - 1][2] : undefined;
-            if (i > 0 && typeof prevEle === 'number' && ele > prevEle) {
-                elevationGain += ele - prevEle;
+            if (i > 0 && typeof prevEle === 'number') {
+                if (ele > prevEle) elevationGain += ele - prevEle;
+                else if (ele < prevEle) elevationLoss += prevEle - ele;
             }
         }
         profile.push({ km: distanceKm, ele: typeof ele === 'number' ? ele : null });
@@ -38,7 +40,12 @@ function computeRouteStats(geometry) {
     // ~12 minutes par km à plat + 10 minutes par 100 m de dénivelé positif.
     const minutes = distanceKm * 12 + (hasElevation ? (elevationGain / 100) * 10 : 0);
 
-    return { distanceKm, elevationGain: hasElevation ? elevationGain : null, minutes, profile, hasElevation };
+    return {
+        distanceKm,
+        elevationGain: hasElevation ? elevationGain : null,
+        elevationLoss: hasElevation ? elevationLoss : null,
+        minutes, profile, hasElevation
+    };
 }
 
 function formatDuration(minutes) {

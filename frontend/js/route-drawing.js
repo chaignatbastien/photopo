@@ -20,10 +20,12 @@ document.getElementById('btn-start-route').addEventListener('click', function ()
     currentWaypointIds = [];
     currentWaypointModes = {};
     currentRouteGeometry = null;
-    currentRouteName = routesById[routeId].name;
+    currentRouteName = 'Nouvel itinéraire';
+    document.getElementById('route-draw-free').checked = false;
     document.getElementById('btn-start-route').style.display = 'none';
     document.getElementById('btn-end-route').style.display = 'inline-block';
     map.getCanvas().style.cursor = 'crosshair';
+    showDrawingPanel();
 });
 
 document.getElementById('btn-end-route').addEventListener('click', finishRoute);
@@ -73,14 +75,24 @@ function findInsertionIndex(lat, lon) {
     return bestIndex;
 }
 
-function addWaypoint(lat, lon, insertAsVia, isFree) {
-    const name = currentWaypointIds.length === 0 ? 'Départ' : (isFree ? 'Point libre' : 'Point');
+function addWaypoint(lat, lon, insertAsVia) {
     const insertIndex = insertAsVia ? findInsertionIndex(lat, lon) : currentWaypointIds.length;
+    const nextId = currentWaypointIds[insertIndex];   // undefined si on ajoute à la fin
+    let isFree = document.getElementById('route-draw-free').checked;
 
-    if (insertAsVia && insertIndex < currentWaypointIds.length) {
-        // le segment coupé est celui qui arrive au point suivant
-        if (currentWaypointModes[currentWaypointIds[insertIndex]] === 'free') isFree = true;
+    if (currentWaypointIds.length === 0) {
+        isFree = false;                               // le départ n'a pas de segment d'arrivée
+    } else if (nextId !== undefined) {
+        if (currentWaypointModes[nextId] === 'free') {
+            isFree = true;                            // on coupe un segment droit : il le reste
+        } else if (isFree) {
+            // via libre : les deux segments voisins deviennent droits
+            currentWaypointModes[nextId] = 'free';
+            pointMarkers[nextId].getElement().classList.add('free-point');
+        }
     }
+
+    const name = currentWaypointIds.length === 0 ? 'Départ' : (isFree ? 'Point libre' : 'Point');
 
     window.api.add_route_point(lat, lon, name, function (result) {
         const point = JSON.parse(result);
@@ -139,7 +151,7 @@ function recalcCurrentRoute() {
         currentRouteGeometry = null;
         if (map.getLayer('current-route-layer')) map.removeLayer('current-route-layer');
         if (map.getSource('current-route')) map.removeSource('current-route');
-        hideDrawingPanel();
+        showDrawingPanel();
         return;
     }
 
@@ -241,6 +253,8 @@ function finishRoute() {
     currentWaypointIds = [];
     currentWaypointModes = {};
     currentRouteGeometry = null;
+    currentRouteName = 'Nouvel itinéraire';
+    document.getElementById('route-draw-free').checked = false;
     document.getElementById('btn-start-route').style.display = 'inline-block';
     document.getElementById('btn-end-route').style.display = 'none';
     map.getCanvas().style.cursor = '';
@@ -301,11 +315,19 @@ function startEditingRoute(routeId) {
 
 map.on('click', function (e) {
     if (!routeMode) return;
-    addWaypoint(e.lngLat.lat, e.lngLat.lng, false, e.originalEvent.shiftKey);
+    addWaypoint(e.lngLat.lat, e.lngLat.lng, false);
 });
 
 map.on('contextmenu', function (e) {
     if (!routeMode) return;
     e.originalEvent.preventDefault();
-    addWaypoint(e.lngLat.lat, e.lngLat.lng, true, e.originalEvent.shiftKey);
+    addWaypoint(e.lngLat.lat, e.lngLat.lng, true);
+});
+
+// Raccourci clavier : L bascule routé / libre (sauf pendant une saisie de texte)
+document.addEventListener('keydown', function (e) {
+    if (!routeMode || e.key.toLowerCase() !== 'l') return;
+    if (e.target.closest('input:not([type="checkbox"]), textarea')) return;
+    const box = document.getElementById('route-draw-free');
+    box.checked = !box.checked;
 });
