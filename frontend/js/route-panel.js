@@ -12,6 +12,7 @@ function showDrawingPanel() {
     panel.classList.add('drawing');
     panel.classList.remove('hidden');
 
+    document.getElementById('route-panel-name').value = currentRouteName;
     document.getElementById('route-panel-chart').innerHTML =
         buildElevationChartSvg(stats.profile, getRouteColor());
     document.getElementById('route-panel-distance').textContent = stats.distanceKm.toFixed(1) + ' km';
@@ -67,6 +68,11 @@ function setRealTimeInputs(minutes) {
 document.getElementById('route-panel-close').addEventListener('click', closeRoutePanel);
 
 document.getElementById('route-panel-name').addEventListener('change', function () {
+    if (routeMode) { // itinéraire en cours de dessin : pas encore enregistré
+        currentRouteName = this.value.trim() || 'Nouvel itinéraire';
+        this.value = currentRouteName;
+        return;
+    }
     if (selectedRouteId === null) return;
     const newName = this.value.trim() || 'Itinéraire sans nom';
     this.value = newName;
@@ -219,3 +225,4 @@ function saveDoneInfo() {
     document.getElementById(id).addEventListener('change', saveDoneInfo);
 });
 
+document.getElementById('route-panel-finish').addEventListener('click', finishRoute);

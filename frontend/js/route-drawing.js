@@ -7,6 +7,7 @@ let editingRouteId = null;
 let currentWaypointIds = [];
 let currentWaypointModes = {}; // pointId -> 'path' (routé via BRouter) ou 'free' (ligne droite)
 let currentRouteGeometry = null;
+let currentRouteName = 'Nouvel itinéraire';
 
 function getRouteColor() {
     return document.getElementById('route-color').value;
@@ -19,6 +20,7 @@ document.getElementById('btn-start-route').addEventListener('click', function ()
     currentWaypointIds = [];
     currentWaypointModes = {};
     currentRouteGeometry = null;
+    currentRouteName = routesById[routeId].name;
     document.getElementById('btn-start-route').style.display = 'none';
     document.getElementById('btn-end-route').style.display = 'inline-block';
     map.getCanvas().style.cursor = 'crosshair';
@@ -193,7 +195,7 @@ function finishRoute() {
         return;
     }
 
-    const routeName = pointsData[currentWaypointIds[0]].name;
+    const routeName = currentRouteName;
     const color = getRouteColor();
     const isFreeFlags = currentWaypointIds.map(function (id) { return currentWaypointModes[id] === 'free'; });
 
@@ -208,6 +210,7 @@ function finishRoute() {
                 if (map.getLayer('route-' + routeId + '-layer')) {
                     map.setLayoutProperty('route-' + routeId + '-layer', 'visibility', 'visible');
                 }
+                selectedRouteId = routeId;
                 loadRoutes();
             }
         );
@@ -217,7 +220,10 @@ function finishRoute() {
             JSON.stringify(currentWaypointIds),
             JSON.stringify(isFreeFlags),
             JSON.stringify(currentRouteGeometry || []),
-            function () { loadRoutes(); }
+            function (newId) {
+                selectedRouteId = newId;
+                loadRoutes(); 
+            }
         );
     }
 
@@ -245,6 +251,7 @@ function startEditingRoute(routeId) {
         currentWaypointIds = [];
         currentWaypointModes = {};
         currentRouteGeometry = null;
+        currentRouteName = routesById[routeId].name;
 
         points.forEach(function (point) {
             pointsData[point.id] = point;
